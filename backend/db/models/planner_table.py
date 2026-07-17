@@ -60,6 +60,12 @@ class Activity(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    checkins = relationship(
+        "ActivityCheckin",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+        order_by="ActivityCheckin.checked_in_at.desc()",
+    )
 
 
 class ActivityPolicy(Base):

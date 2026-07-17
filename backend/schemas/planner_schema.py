@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, time
 
 from pydantic import BaseModel, Field, model_validator
@@ -55,8 +57,13 @@ class ActivityResponse(ActivityBase):
     planner_id: int
     status: str
     policy: ActivityPolicyResponse | None = None
+    checkins: list[CheckinResponse] = []
 
     model_config = {"from_attributes": True}
+
+
+# Import here to avoid circular imports (CheckinResponse references ActivityResponse indirectly)
+from backend.schemas.checkin_schema import CheckinResponse  # noqa: E402
 
 
 class DailyPlannerBase(BaseModel):

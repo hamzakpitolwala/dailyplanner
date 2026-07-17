@@ -3,6 +3,29 @@ import { useEffect, useState } from 'react';
 const AUTH_BASE = '/auth';
 const PLANNER_BASE = '/planners';
 
+const CHECKIN_STATUSES = [
+  { value: 'done', label: '✅ Done', color: '#276749' },
+  { value: 'not_done', label: '❌ Not Done', color: '#b42318' },
+  { value: 'partial', label: '🔶 Partial', color: '#b54708' },
+  { value: 'rescheduled', label: '📅 Rescheduled', color: '#3538cd' },
+];
+
+const REASON_CODES = [
+  { value: 'too_busy', label: 'Too busy' },
+  { value: 'forgot', label: 'Forgot' },
+  { value: 'not_feeling_well', label: 'Not feeling well' },
+  { value: 'schedule_conflict', label: 'Schedule conflict' },
+  { value: 'low_priority', label: 'Low priority' },
+  { value: 'other', label: 'Other' },
+];
+
+const ALTERNATE_PRESETS = [
+  'Doing some important work',
+  'Attending an unscheduled meeting',
+  'Helping a colleague',
+  'Personal errand',
+];
+
 const emptyActivity = {
   title: '',
   description: '',
@@ -28,6 +51,18 @@ function App() {
   const [plannerNotes, setPlannerNotes] = useState('');
   const [activityForm, setActivityForm] = useState(emptyActivity);
   const [editingActivityId, setEditingActivityId] = useState(null);
+
+  // Check-in modal state
+  const [checkinModal, setCheckinModal] = useState(null); // { activity, status }
+  const [checkinNotes, setCheckinNotes] = useState('');
+  const [reasonCode, setReasonCode] = useState('');
+  const [reasonText, setReasonText] = useState('');
+  const [altDescription, setAltDescription] = useState('');
+  const [altCategory, setAltCategory] = useState('');
+
+  // Check-in history
+  const [historyActivityId, setHistoryActivityId] = useState(null);
+  const [checkinHistory, setCheckinHistory] = useState([]);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -225,6 +260,76 @@ function App() {
     }
   };
 
+  // --- Check-in logic ---
+
+  const openCheckinModal = (activity, statusValue) => {
+    if (statusValue === 'not_done') {
+      // Open the conditional modal
+      setCheckinModal({ activity, status: statusValue });
+      setCheckinNotes('');
+      setReasonCode('');
+      setReasonText('');
+      setAltDescription('');
+      setAltCategory('');
+    } else {
+      // Directly submit for done/partial/rescheduled
+      submitCheckin(activity.id, statusValue, '');
+    }
+  };
+
+  const submitCheckin = async (activityId, status, notes, missedReason = null, alternate = null) => {
+    const payload = { status, notes: notes || null };
+
+    if (status === 'not_done' && missedReason) {
+      payload.missed_reason = missedReason;
+    }
+    if (status === 'not_done' && alternate) {
+      payload.alternate_activity = alternate;
+    }
+
+    try {
+      await apiRequest(`${PLANNER_BASE}/activities/${activityId}/checkins`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      setMessage(`Checked in: ${status.replace('_', ' ')}`);
+      setCheckinModal(null);
+      await loadPlanner(plannerDate);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const handleCheckinModalSubmit = (event) => {
+    event.preventDefault();
+    const { activity, status } = checkinModal;
+
+    const missedReason = reasonCode
+      ? { reason_code: reasonCode, free_text: reasonText || null }
+      : null;
+
+    const alternate = altDescription
+      ? { description: altDescription, category: altCategory || null }
+      : null;
+
+    submitCheckin(activity.id, status, checkinNotes, missedReason, alternate);
+  };
+
+  const loadCheckinHistory = async (activityId) => {
+    if (historyActivityId === activityId) {
+      setHistoryActivityId(null);
+      setCheckinHistory([]);
+      return;
+    }
+    try {
+      const data = await apiRequest(`${PLANNER_BASE}/activities/${activityId}/checkins`);
+      setCheckinHistory(data);
+      setHistoryActivityId(activityId);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken('');
@@ -237,12 +342,33 @@ function App() {
     window.location.href = `${AUTH_BASE}/${provider}/authorize`;
   };
 
+  const getStatusBadge = (status) => {
+    const config = CHECKIN_STATUSES.find((s) => s.value === status) || {
+      label: status,
+      color: '#667085',
+    };
+    return (
+      <span
+        style={{
+          ...styles.badge,
+          background: config.color + '18',
+          color: config.color,
+          border: `1px solid ${config.color}40`,
+        }}
+      >
+        {config.label}
+      </span>
+    );
+  };
+
+  // --- Auth screen ---
+
   if (!token) {
     return (
       <main style={styles.shell}>
         <section style={styles.panel}>
           <h1>DailyPlanner</h1>
-          <p style={styles.muted}>Phase 0 auth and Phase 1 planner CRUD</p>
+          <p style={styles.muted}>Phase 0–2: Auth, Planner CRUD, and Check-ins</p>
 
           <div style={styles.tabs}>
             <button style={mode === 'login' ? styles.activeButton : styles.button} onClick={() => setMode('login')}>
@@ -280,6 +406,8 @@ function App() {
       </main>
     );
   }
+
+  // --- Main app ---
 
   return (
     <main style={styles.appShell}>
@@ -375,14 +503,73 @@ function App() {
         <div style={styles.activityList}>
           {planner?.activities?.map((activity) => (
             <article key={activity.id} style={styles.activityItem}>
-              <div>
-                <strong>{activity.title}</strong>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <strong>{activity.title}</strong>
+                  {getStatusBadge(activity.status)}
+                </div>
                 <p style={styles.muted}>
-                  {[activity.start_time, activity.end_time].filter(Boolean).join(' - ') || 'No time set'}
+                  {[activity.start_time, activity.end_time].filter(Boolean).join(' – ') || 'No time set'}
                   {activity.category ? ` | ${activity.category}` : ''}
                 </p>
                 {activity.description && <p>{activity.description}</p>}
+
+                {/* Status check-in buttons */}
+                <div style={{ ...styles.actions, marginTop: '0.5rem' }}>
+                  {CHECKIN_STATUSES.map((s) => (
+                    <button
+                      key={s.value}
+                      style={{
+                        ...styles.smallButton,
+                        borderColor: s.color,
+                        color: activity.status === s.value ? '#fff' : s.color,
+                        background: activity.status === s.value ? s.color : '#fff',
+                      }}
+                      onClick={() => openCheckinModal(activity, s.value)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* History toggle */}
+                <button
+                  style={{ ...styles.linkButton, marginTop: '0.5rem' }}
+                  onClick={() => loadCheckinHistory(activity.id)}
+                >
+                  {historyActivityId === activity.id ? 'Hide history' : 'Show history'}
+                </button>
+
+                {/* Check-in history */}
+                {historyActivityId === activity.id && (
+                  <div style={styles.historyList}>
+                    {checkinHistory.length === 0 && (
+                      <p style={styles.muted}>No check-ins yet.</p>
+                    )}
+                    {checkinHistory.map((ci) => (
+                      <div key={ci.id} style={styles.historyItem}>
+                        <span>{getStatusBadge(ci.status)}</span>
+                        <span style={styles.muted}>
+                          {new Date(ci.checked_in_at).toLocaleString()}
+                        </span>
+                        {ci.notes && <span> — {ci.notes}</span>}
+                        {ci.missed_reason && (
+                          <span style={{ color: '#b42318' }}>
+                            {' '}| Reason: {ci.missed_reason.reason_code.replace('_', ' ')}
+                            {ci.missed_reason.free_text ? ` (${ci.missed_reason.free_text})` : ''}
+                          </span>
+                        )}
+                        {ci.alternate_activity && (
+                          <span style={{ color: '#3538cd' }}>
+                            {' '}| Instead: {ci.alternate_activity.description}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <div style={styles.actions}>
                 <button style={styles.button} onClick={() => editActivity(activity)}>Edit</button>
                 <button style={styles.dangerButton} onClick={() => deleteActivity(activity.id)}>Delete</button>
@@ -391,6 +578,112 @@ function App() {
           ))}
         </div>
       </section>
+
+      {/* ---- Not Done check-in modal ---- */}
+      {checkinModal && (
+        <div style={styles.modalOverlay} onClick={() => setCheckinModal(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.subheading}>
+              Check in: {checkinModal.activity.title}
+            </h3>
+            <p style={{ ...styles.muted, marginBottom: '0.75rem' }}>
+              Status: <strong style={{ color: '#b42318' }}>Not Done</strong>
+            </p>
+
+            <form onSubmit={handleCheckinModalSubmit} style={styles.form}>
+              <label style={styles.label}>
+                Notes (optional)
+                <textarea
+                  style={styles.textarea}
+                  value={checkinNotes}
+                  onChange={(e) => setCheckinNotes(e.target.value)}
+                  placeholder="Any additional notes…"
+                />
+              </label>
+
+              {/* Reason picker (shown if policy requires reason or user wants to provide one) */}
+              {checkinModal.activity.policy?.requires_reason !== false && (
+                <>
+                  <label style={styles.label}>
+                    Why was it missed? {checkinModal.activity.policy?.requires_reason && <span style={{ color: '#b42318' }}>*</span>}
+                    <select
+                      style={styles.input}
+                      value={reasonCode}
+                      onChange={(e) => setReasonCode(e.target.value)}
+                      required={checkinModal.activity.policy?.requires_reason}
+                    >
+                      <option value="">Select a reason…</option>
+                      {REASON_CODES.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {reasonCode && (
+                    <label style={styles.label}>
+                      Additional detail (optional)
+                      <input
+                        style={styles.input}
+                        value={reasonText}
+                        onChange={(e) => setReasonText(e.target.value)}
+                        placeholder="Explain further…"
+                      />
+                    </label>
+                  )}
+                </>
+              )}
+
+              {/* Alternate activity (shown if policy allows) */}
+              {checkinModal.activity.policy?.allows_alternate !== false && (
+                <>
+                  <label style={styles.label}>
+                    What did you do instead? (optional)
+                    <select
+                      style={styles.input}
+                      value={altDescription}
+                      onChange={(e) => setAltDescription(e.target.value)}
+                    >
+                      <option value="">Select or type below…</option>
+                      {ALTERNATE_PRESETS.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    <input
+                      style={{ ...styles.input, marginTop: '0.35rem' }}
+                      value={altDescription}
+                      onChange={(e) => setAltDescription(e.target.value)}
+                      placeholder="Or type a custom description…"
+                    />
+                  </label>
+                  {altDescription && (
+                    <label style={styles.label}>
+                      Category (optional)
+                      <input
+                        style={styles.input}
+                        value={altCategory}
+                        onChange={(e) => setAltCategory(e.target.value)}
+                        placeholder="e.g. work, personal, errands"
+                      />
+                    </label>
+                  )}
+                </>
+              )}
+
+              <div style={styles.actions}>
+                <button style={styles.primaryButton} type="submit">
+                  Submit check-in
+                </button>
+                <button
+                  style={styles.button}
+                  type="button"
+                  onClick={() => setCheckinModal(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -532,6 +825,32 @@ const styles = {
     cursor: 'pointer',
     font: 'inherit',
   },
+  smallButton: {
+    border: '1px solid',
+    borderRadius: 5,
+    padding: '0.35rem 0.6rem',
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    font: 'inherit',
+    fontWeight: 500,
+  },
+  linkButton: {
+    border: 'none',
+    background: 'none',
+    color: '#3538cd',
+    cursor: 'pointer',
+    font: 'inherit',
+    fontSize: '0.85rem',
+    padding: 0,
+    textDecoration: 'underline',
+  },
+  badge: {
+    display: 'inline-block',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    padding: '0.2rem 0.55rem',
+    borderRadius: 12,
+  },
   muted: {
     margin: '0.25rem 0',
     color: '#667085',
@@ -541,6 +860,35 @@ const styles = {
     borderRadius: 6,
     padding: '0.75rem',
     background: '#eef4ff',
+  },
+  historyList: {
+    marginTop: '0.5rem',
+    padding: '0.5rem',
+    borderTop: '1px solid #edf1f5',
+  },
+  historyItem: {
+    padding: '0.35rem 0',
+    fontSize: '0.85rem',
+    borderBottom: '1px solid #f3f4f6',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    background: '#fff',
+    borderRadius: 12,
+    padding: '1.5rem',
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)',
   },
 };
 

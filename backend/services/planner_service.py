@@ -2,7 +2,21 @@ from datetime import date
 
 from sqlalchemy.orm import Session, selectinload
 
+from backend.db.models.checkin_table import ActivityCheckin
 from backend.db.models.planner_table import Activity, ActivityPolicy, DailyPlanner
+
+
+def _activity_load_options():
+    """Reusable selectinload options for Activity relationships."""
+    return [
+        selectinload(DailyPlanner.activities).selectinload(Activity.policy),
+        selectinload(DailyPlanner.activities)
+        .selectinload(Activity.checkins)
+        .selectinload(ActivityCheckin.missed_reason),
+        selectinload(DailyPlanner.activities)
+        .selectinload(Activity.checkins)
+        .selectinload(ActivityCheckin.alternate_activity),
+    ]
 from backend.schemas.planner_schema import (
     ActivityCreate,
     ActivityPolicyBase,
@@ -16,7 +30,7 @@ class PlannerService:
     def list_planners(self, db: Session, user_id: int) -> list[DailyPlanner]:
         return (
             db.query(DailyPlanner)
-            .options(selectinload(DailyPlanner.activities).selectinload(Activity.policy))
+            .options(*_activity_load_options())
             .filter(DailyPlanner.user_id == user_id)
             .order_by(DailyPlanner.planner_date.desc())
             .all()
@@ -25,7 +39,7 @@ class PlannerService:
     def get_planner(self, db: Session, user_id: int, planner_id: int) -> DailyPlanner | None:
         return (
             db.query(DailyPlanner)
-            .options(selectinload(DailyPlanner.activities).selectinload(Activity.policy))
+            .options(*_activity_load_options())
             .filter(DailyPlanner.id == planner_id, DailyPlanner.user_id == user_id)
             .first()
         )
@@ -35,7 +49,7 @@ class PlannerService:
     ) -> DailyPlanner | None:
         return (
             db.query(DailyPlanner)
-            .options(selectinload(DailyPlanner.activities).selectinload(Activity.policy))
+            .options(*_activity_load_options())
             .filter(
                 DailyPlanner.user_id == user_id,
                 DailyPlanner.planner_date == planner_date,
@@ -102,7 +116,11 @@ class PlannerService:
     def get_activity(self, db: Session, user_id: int, activity_id: int) -> Activity | None:
         return (
             db.query(Activity)
-            .options(selectinload(Activity.policy))
+            .options(
+                selectinload(Activity.policy),
+                selectinload(Activity.checkins).selectinload(ActivityCheckin.missed_reason),
+                selectinload(Activity.checkins).selectinload(ActivityCheckin.alternate_activity),
+            )
             .filter(Activity.id == activity_id, Activity.user_id == user_id)
             .first()
         )

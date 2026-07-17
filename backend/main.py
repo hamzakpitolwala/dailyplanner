@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.auth_api import router as auth_router
+from backend.api.checkin_api import router as checkin_router
 from backend.api.oauth2_api import router as oauth2_router
 from backend.api.planner_api import router as planner_router
 from backend.core.config import settings
@@ -44,6 +45,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(oauth2_router)
 app.include_router(planner_router)
+app.include_router(checkin_router)
 
 
 @app.get("/health")
