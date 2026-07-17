@@ -60,11 +60,11 @@ class Activity(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
-    checkins = relationship(
-        "ActivityCheckin",
+    history_events = relationship(
+        "ActivityHistoryEvent",
         back_populates="activity",
         cascade="all, delete-orphan",
-        order_by="ActivityCheckin.checked_in_at.desc()",
+        order_by="ActivityHistoryEvent.timestamp.desc()",
     )
 
 

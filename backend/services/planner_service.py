@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session, selectinload
 
-from backend.db.models.checkin_table import ActivityCheckin
+from backend.db.models.history_table import ActivityHistoryEvent
 from backend.db.models.planner_table import Activity, ActivityPolicy, DailyPlanner
 
 
@@ -11,11 +11,11 @@ def _activity_load_options():
     return [
         selectinload(DailyPlanner.activities).selectinload(Activity.policy),
         selectinload(DailyPlanner.activities)
-        .selectinload(Activity.checkins)
-        .selectinload(ActivityCheckin.missed_reason),
+        .selectinload(Activity.history_events)
+        .selectinload(ActivityHistoryEvent.missed_reason),
         selectinload(DailyPlanner.activities)
-        .selectinload(Activity.checkins)
-        .selectinload(ActivityCheckin.alternate_activity),
+        .selectinload(Activity.history_events)
+        .selectinload(ActivityHistoryEvent.alternate_activity),
     ]
 from backend.schemas.planner_schema import (
     ActivityCreate,
@@ -118,8 +118,8 @@ class PlannerService:
             db.query(Activity)
             .options(
                 selectinload(Activity.policy),
-                selectinload(Activity.checkins).selectinload(ActivityCheckin.missed_reason),
-                selectinload(Activity.checkins).selectinload(ActivityCheckin.alternate_activity),
+                selectinload(Activity.history_events).selectinload(ActivityHistoryEvent.missed_reason),
+                selectinload(Activity.history_events).selectinload(ActivityHistoryEvent.alternate_activity),
             )
             .filter(Activity.id == activity_id, Activity.user_id == user_id)
             .first()

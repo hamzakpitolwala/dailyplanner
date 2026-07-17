@@ -278,17 +278,17 @@ function App() {
   };
 
   const submitCheckin = async (activityId, status, notes, missedReason = null, alternate = null) => {
-    const payload = { status, notes: notes || null };
+    const payload = { action_type: 'status_change', new_state: status, notes: notes || null };
 
     if (status === 'not_done' && missedReason) {
-      payload.missed_reason = missedReason;
+        payload.missed_reason = missedReason;
     }
     if (status === 'not_done' && alternate) {
       payload.alternate_activity = alternate;
     }
 
     try {
-      await apiRequest(`${PLANNER_BASE}/activities/${activityId}/checkins`, {
+      await apiRequest(`${PLANNER_BASE}/activities/${activityId}/history`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -322,7 +322,7 @@ function App() {
       return;
     }
     try {
-      const data = await apiRequest(`${PLANNER_BASE}/activities/${activityId}/checkins`);
+      const data = await apiRequest(`${PLANNER_BASE}/activities/${activityId}/history`);
       setCheckinHistory(data);
       setHistoryActivityId(activityId);
     } catch (error) {
@@ -516,20 +516,37 @@ function App() {
 
                 {/* Status check-in buttons */}
                 <div style={{ ...styles.actions, marginTop: '0.5rem' }}>
-                  {CHECKIN_STATUSES.map((s) => (
-                    <button
-                      key={s.value}
-                      style={{
-                        ...styles.smallButton,
-                        borderColor: s.color,
-                        color: activity.status === s.value ? '#fff' : s.color,
-                        background: activity.status === s.value ? s.color : '#fff',
-                      }}
-                      onClick={() => openCheckinModal(activity, s.value)}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                  {CHECKIN_STATUSES.map((s) => {
+                    // Primitive state machine for UI display logic (Slice 1 requirement)
+                    const allowedStates = {
+                      planned: ['in_progress', 'partial', 'done', 'not_done', 'rescheduled'],
+                      in_progress: ['partial', 'done', 'not_done', 'rescheduled'],
+                      partial: ['done', 'not_done', 'rescheduled'],
+                      done: [],
+                      not_done: [],
+                      rescheduled: [],
+                      cancelled: [],
+                    };
+                    const isAllowed = (allowedStates[activity.status] || []).includes(s.value);
+                    
+                    if (!isAllowed && activity.status !== s.value) return null;
+
+                    return (
+                      <button
+                        key={s.value}
+                        style={{
+                          ...styles.smallButton,
+                          borderColor: s.color,
+                          color: activity.status === s.value ? '#fff' : s.color,
+                          background: activity.status === s.value ? s.color : '#fff',
+                        }}
+                        onClick={() => openCheckinModal(activity, s.value)}
+                        disabled={activity.status === s.value || !isAllowed}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* History toggle */}
@@ -548,9 +565,9 @@ function App() {
                     )}
                     {checkinHistory.map((ci) => (
                       <div key={ci.id} style={styles.historyItem}>
-                        <span>{getStatusBadge(ci.status)}</span>
+                        <span>{getStatusBadge(ci.new_state)}</span>
                         <span style={styles.muted}>
-                          {new Date(ci.checked_in_at).toLocaleString()}
+                          {new Date(ci.timestamp).toLocaleString()}
                         </span>
                         {ci.notes && <span> — {ci.notes}</span>}
                         {ci.missed_reason && (

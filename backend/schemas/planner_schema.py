@@ -57,13 +57,13 @@ class ActivityResponse(ActivityBase):
     planner_id: int
     status: str
     policy: ActivityPolicyResponse | None = None
-    checkins: list[CheckinResponse] = []
+    history_events: list[HistoryEventResponse] = []
 
     model_config = {"from_attributes": True}
 
 
-# Import here to avoid circular imports (CheckinResponse references ActivityResponse indirectly)
-from backend.schemas.checkin_schema import CheckinResponse  # noqa: E402
+# Import here to avoid circular imports (HistoryEventResponse references ActivityResponse indirectly)
+from backend.schemas.history_schema import HistoryEventResponse  # noqa: E402
 
 
 class DailyPlannerBase(BaseModel):
