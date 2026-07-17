@@ -621,6 +621,8 @@ function App() {
                         rescheduled: [],
                         cancelled: [],
                       };
+                      const isAllowed = (allowedStates[activity.status] || []).includes(s.value);
+                      
                       // Time check
                       let isPastEndTime = false;
                       if (activity.end_time && planner.planner_date) {
