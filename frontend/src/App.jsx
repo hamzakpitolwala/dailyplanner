@@ -581,11 +581,20 @@ function App() {
           <h2 style={styles.subheading}>Activities</h2>
           {!planner?.activities?.length && <p style={styles.muted}>No activities yet.</p>}
           <div style={styles.activityList}>
-            {planner?.activities?.map((activity) => (
-              <article key={activity.id} style={styles.activityItem}>
-                <div style={{ flex: 1 }}>
+            {planner?.activities?.map((activity) => {
+              const isDone = activity.status === 'done';
+              const isNotDone = activity.status === 'not_done';
+              const isTerminal = ['done', 'not_done', 'rescheduled', 'cancelled'].includes(activity.status);
+              
+              let containerStyle = { ...styles.activityItem };
+              if (isDone) containerStyle.opacity = 0.7;
+              if (isNotDone) containerStyle.background = '#fdeded';
+
+              return (
+              <article key={activity.id} style={containerStyle}>
+                <div style={{ flex: 1, textDecoration: isDone ? 'line-through' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <strong>{activity.title}</strong>
+                    <strong style={{ color: isNotDone ? '#b42318' : 'inherit' }}>{activity.title}</strong>
                     {getStatusBadge(activity.status)}
                     {activity.carried_over_from_id && (
                       <span style={{ fontSize: '0.8rem', color: '#b54708', background: '#ffead5', padding: '0.1rem 0.4rem', borderRadius: 4 }}>
@@ -612,8 +621,25 @@ function App() {
                         rescheduled: [],
                         cancelled: [],
                       };
-                      const isAllowed = (allowedStates[activity.status] || []).includes(s.value);
+                      // Time check
+                      let isPastEndTime = false;
+                      if (activity.end_time && planner.planner_date) {
+                        const now = new Date();
+                        const todayStr = now.toISOString().slice(0, 10);
+                        if (planner.planner_date < todayStr) {
+                          isPastEndTime = true; // past day
+                        } else if (planner.planner_date === todayStr) {
+                          const timeParts = activity.end_time.split(':');
+                          const end = new Date();
+                          end.setHours(parseInt(timeParts[0], 10), parseInt(timeParts[1], 10), 0, 0);
+                          if (now > end) {
+                            isPastEndTime = true;
+                          }
+                        }
+                      }
                       
+                      const isDisabled = activity.status === s.value || !isAllowed || (isPastEndTime && !['rescheduled', 'cancelled'].includes(s.value));
+
                       if (!isAllowed && activity.status !== s.value) return null;
 
                       return (
@@ -624,9 +650,11 @@ function App() {
                             borderColor: s.color,
                             color: activity.status === s.value ? '#fff' : s.color,
                             background: activity.status === s.value ? s.color : '#fff',
+                            opacity: isDisabled ? 0.5 : 1,
+                            cursor: isDisabled ? 'not-allowed' : 'pointer'
                           }}
                           onClick={() => openCheckinModal(activity, s.value)}
-                          disabled={activity.status === s.value || !isAllowed}
+                          disabled={isDisabled}
                         >
                           {s.label}
                         </button>
@@ -673,11 +701,14 @@ function App() {
                 </div>
 
                 <div style={styles.actions}>
-                  <button style={styles.button} onClick={() => editActivity(activity)}>Edit</button>
+                  {!isTerminal && (
+                    <button style={styles.button} onClick={() => editActivity(activity)}>Edit</button>
+                  )}
                   <button style={styles.dangerButton} onClick={() => deleteActivity(activity.id)}>Delete</button>
                 </div>
               </article>
-            ))}
+            );
+          })}
           </div>
         </section>
       )}

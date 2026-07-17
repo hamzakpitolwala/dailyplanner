@@ -159,6 +159,9 @@ class PlannerService:
     def update_activity(
         self, db: Session, activity: Activity, data: ActivityUpdate
     ) -> Activity:
+        if activity.status in ("done", "not_done", "rescheduled", "cancelled"):
+            raise ValueError(f"Cannot edit activity with terminal status '{activity.status}'.")
+
         payload = data.model_dump(exclude_unset=True, exclude={"policy"})
         for field, value in payload.items():
             setattr(activity, field, value)
