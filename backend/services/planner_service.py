@@ -64,12 +64,43 @@ class PlannerService:
         if planner:
             return planner
 
+        # Check for in_use template
+        from backend.services.template_service import TemplateService
+        template_svc = TemplateService()
+        template = template_svc.get_in_use_template(db, user_id)
+
+        title = f"Planner for {planner_date.isoformat()}"
+        template_id = None
+        if template:
+            title = template.name
+            template_id = template.id
+
         planner = DailyPlanner(
             user_id=user_id,
             planner_date=planner_date,
-            title=f"Planner for {planner_date.isoformat()}",
+            title=title,
+            template_id=template_id,
         )
         db.add(planner)
+        db.flush()
+
+        if template:
+            for act_tmpl in template.activity_templates:
+                activity = Activity(
+                    user_id=user_id,
+                    planner_id=planner.id,
+                    title=act_tmpl.title,
+                    description=act_tmpl.description,
+                    category=act_tmpl.category,
+                    start_time=act_tmpl.start_time,
+                    end_time=act_tmpl.end_time,
+                    status="planned"
+                )
+                db.add(activity)
+                db.flush()
+                # Create default policy
+                db.add(ActivityPolicy(activity_id=activity.id, requires_reason=True, allows_alternate=True))
+
         db.commit()
         db.refresh(planner)
         return self.get_planner(db, user_id, planner.id) or planner

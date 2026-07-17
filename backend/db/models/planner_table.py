@@ -13,6 +13,7 @@ class DailyPlanner(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    template_id = Column(Integer, ForeignKey("planner_templates.id", ondelete="SET NULL"), nullable=True, index=True)
     planner_date = Column(Date, nullable=False, index=True)
     title = Column(String(160), nullable=False)
     notes = Column(Text, nullable=True)

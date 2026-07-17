@@ -45,6 +45,7 @@ function App() {
   const [message, setMessage] = useState('');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [appView, setAppView] = useState('planner'); // 'planner' or 'templates'
   const [planner, setPlanner] = useState(null);
   const [plannerDate, setPlannerDate] = useState(todayIso());
   const [plannerTitle, setPlannerTitle] = useState('');
@@ -63,6 +64,10 @@ function App() {
   // Check-in history
   const [historyActivityId, setHistoryActivityId] = useState(null);
   const [checkinHistory, setCheckinHistory] = useState([]);
+
+  // Templates
+  const [templates, setTemplates] = useState([]);
+  const [templateName, setTemplateName] = useState('');
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -110,6 +115,11 @@ function App() {
     setPlannerNotes(data.notes || '');
   };
 
+  const loadTemplates = async () => {
+    const data = await apiRequest(`/templates`);
+    setTemplates(data || []);
+  };
+
   useEffect(() => {
     if (!token) return;
 
@@ -118,6 +128,7 @@ function App() {
         const me = await apiRequest(`${AUTH_BASE}/me`);
         setUser(me);
         await loadPlanner(plannerDate);
+        await loadTemplates();
       } catch (error) {
         localStorage.removeItem('token');
         setToken('');
@@ -412,189 +423,251 @@ function App() {
   return (
     <main style={styles.appShell}>
       <header style={styles.header}>
-        <div>
+        <div style={styles.header}>
           <h1 style={styles.heading}>DailyPlanner</h1>
-          <p style={styles.muted}>{user ? `Hello, ${user.username}` : 'Loading user...'}</p>
+          <div>
+            <button 
+              style={styles.button} 
+              onClick={() => setAppView(appView === 'planner' ? 'templates' : 'planner')}
+            >
+              {appView === 'planner' ? 'Manage Templates' : 'Back to Planner'}
+            </button>
+            <button
+              style={{ ...styles.button, marginLeft: '0.5rem' }}
+              onClick={() => {
+                localStorage.removeItem('token');
+                setToken('');
+                setUser(null);
+                setPlanner(null);
+              }}
+            >
+              Sign out ({user.email})
+            </button>
+          </div>
         </div>
-        <button style={styles.button} onClick={logout}>Logout</button>
       </header>
 
-      {message && <p style={styles.message}>{message}</p>}
-
-      <section style={styles.workspace}>
-        <div style={styles.panel}>
-          <form onSubmit={savePlanner} style={styles.form}>
-            <label style={styles.label}>
-              Planner date
-              <input style={styles.input} type="date" value={plannerDate} onChange={changePlannerDate} />
-            </label>
-            <label style={styles.label}>
-              Title
-              <input style={styles.input} value={plannerTitle} onChange={(event) => setPlannerTitle(event.target.value)} />
-            </label>
-            <label style={styles.label}>
-              Notes
-              <textarea style={styles.textarea} value={plannerNotes} onChange={(event) => setPlannerNotes(event.target.value)} />
-            </label>
-            <button style={styles.primaryButton} type="submit">Save planner</button>
-          </form>
+      {message && (
+        <div style={{ padding: '0.75rem', background: '#d1e7dd', color: '#0f5132', borderRadius: 4, marginBottom: '1rem' }}>
+          {message}
         </div>
+      )}
 
-        <div style={styles.panel}>
-          <h2 style={styles.subheading}>{editingActivityId ? 'Edit activity' : 'Add activity'}</h2>
-          <form onSubmit={submitActivity} style={styles.form}>
+      {appView === 'templates' ? (
+        <div>
+          <h2>Templates Library</h2>
+          <form onSubmit={submitTemplate} style={{ marginBottom: '1rem' }}>
             <input
               style={styles.input}
-              value={activityForm.title}
-              onChange={(event) => setActivityForm({ ...activityForm, title: event.target.value })}
-              placeholder="Activity title"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="New Template Name..."
               required
             />
-            <input
-              style={styles.input}
-              value={activityForm.category}
-              onChange={(event) => setActivityForm({ ...activityForm, category: event.target.value })}
-              placeholder="Category"
-            />
-            <div style={styles.timeGrid}>
-              <input
-                style={styles.input}
-                type="time"
-                value={activityForm.start_time}
-                onChange={(event) => setActivityForm({ ...activityForm, start_time: event.target.value })}
-              />
-              <input
-                style={styles.input}
-                type="time"
-                value={activityForm.end_time}
-                onChange={(event) => setActivityForm({ ...activityForm, end_time: event.target.value })}
-              />
-            </div>
-            <textarea
-              style={styles.textarea}
-              value={activityForm.description}
-              onChange={(event) => setActivityForm({ ...activityForm, description: event.target.value })}
-              placeholder="Description"
-            />
-            <div style={styles.actions}>
-              <button style={styles.primaryButton} type="submit">
-                {editingActivityId ? 'Update activity' : 'Add activity'}
-              </button>
-              {editingActivityId && (
-                <button
-                  style={styles.button}
-                  type="button"
-                  onClick={() => {
-                    setEditingActivityId(null);
-                    setActivityForm(emptyActivity);
-                  }}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
+            <button type="submit" style={styles.primaryButton}>Create Template</button>
           </form>
-        </div>
-      </section>
 
-      <section style={styles.panel}>
-        <h2 style={styles.subheading}>Activities</h2>
-        {!planner?.activities?.length && <p style={styles.muted}>No activities yet.</p>}
-        <div style={styles.activityList}>
-          {planner?.activities?.map((activity) => (
-            <article key={activity.id} style={styles.activityItem}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <strong>{activity.title}</strong>
-                  {getStatusBadge(activity.status)}
+          {templates.map(tmpl => (
+            <div key={tmpl.id} style={styles.panel}>
+              <div style={styles.header}>
+                <h3>{tmpl.name} {tmpl.in_use && <span style={{color: 'green'}}>(Active)</span>}</h3>
+                <div>
+                  <button style={styles.smallButton} onClick={() => toggleTemplateInUse(tmpl.id, tmpl.in_use)}>
+                    {tmpl.in_use ? 'Deactivate' : 'Set Active'}
+                  </button>
+                  <button style={styles.smallButton} onClick={() => addTemplateActivity(tmpl.id)}>Add Activity</button>
                 </div>
-                <p style={styles.muted}>
-                  {[activity.start_time, activity.end_time].filter(Boolean).join(' – ') || 'No time set'}
-                  {activity.category ? ` | ${activity.category}` : ''}
-                </p>
-                {activity.description && <p>{activity.description}</p>}
-
-                {/* Status check-in buttons */}
-                <div style={{ ...styles.actions, marginTop: '0.5rem' }}>
-                  {CHECKIN_STATUSES.map((s) => {
-                    // Primitive state machine for UI display logic (Slice 1 requirement)
-                    const allowedStates = {
-                      planned: ['in_progress', 'partial', 'done', 'not_done', 'rescheduled'],
-                      in_progress: ['partial', 'done', 'not_done', 'rescheduled'],
-                      partial: ['done', 'not_done', 'rescheduled'],
-                      done: [],
-                      not_done: [],
-                      rescheduled: [],
-                      cancelled: [],
-                    };
-                    const isAllowed = (allowedStates[activity.status] || []).includes(s.value);
-                    
-                    if (!isAllowed && activity.status !== s.value) return null;
-
-                    return (
-                      <button
-                        key={s.value}
-                        style={{
-                          ...styles.smallButton,
-                          borderColor: s.color,
-                          color: activity.status === s.value ? '#fff' : s.color,
-                          background: activity.status === s.value ? s.color : '#fff',
-                        }}
-                        onClick={() => openCheckinModal(activity, s.value)}
-                        disabled={activity.status === s.value || !isAllowed}
-                      >
-                        {s.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* History toggle */}
-                <button
-                  style={{ ...styles.linkButton, marginTop: '0.5rem' }}
-                  onClick={() => loadCheckinHistory(activity.id)}
-                >
-                  {historyActivityId === activity.id ? 'Hide history' : 'Show history'}
-                </button>
-
-                {/* Check-in history */}
-                {historyActivityId === activity.id && (
-                  <div style={styles.historyList}>
-                    {checkinHistory.length === 0 && (
-                      <p style={styles.muted}>No check-ins yet.</p>
-                    )}
-                    {checkinHistory.map((ci) => (
-                      <div key={ci.id} style={styles.historyItem}>
-                        <span>{getStatusBadge(ci.new_state)}</span>
-                        <span style={styles.muted}>
-                          {new Date(ci.timestamp).toLocaleString()}
-                        </span>
-                        {ci.notes && <span> — {ci.notes}</span>}
-                        {ci.missed_reason && (
-                          <span style={{ color: '#b42318' }}>
-                            {' '}| Reason: {ci.missed_reason.reason_code.replace('_', ' ')}
-                            {ci.missed_reason.free_text ? ` (${ci.missed_reason.free_text})` : ''}
-                          </span>
-                        )}
-                        {ci.alternate_activity && (
-                          <span style={{ color: '#3538cd' }}>
-                            {' '}| Instead: {ci.alternate_activity.description}
-                          </span>
-                        )}
-                      </div>
-                    ))}
+              </div>
+              <div>
+                {tmpl.activity_templates.map(act => (
+                  <div key={act.id} style={{ padding: '0.5rem', borderBottom: '1px solid #ccc' }}>
+                    {act.title}
                   </div>
+                ))}
+                {tmpl.activity_templates.length === 0 && <p style={styles.muted}>No activities in template.</p>}
+              </div>
+            </div>
+          ))}
+          {templates.length === 0 && <p>No templates yet.</p>}
+        </div>
+      ) : (
+        <div style={styles.workspace}>
+          <div style={styles.panel}>
+            <form onSubmit={savePlanner} style={styles.form}>
+              <label style={styles.label}>
+                Planner date
+                <input style={styles.input} type="date" value={plannerDate} onChange={changePlannerDate} />
+              </label>
+              <label style={styles.label}>
+                Title
+                <input style={styles.input} value={plannerTitle} onChange={(event) => setPlannerTitle(event.target.value)} />
+              </label>
+              <label style={styles.label}>
+                Notes
+                <textarea style={styles.textarea} value={plannerNotes} onChange={(event) => setPlannerNotes(event.target.value)} />
+              </label>
+              <button style={styles.primaryButton} type="submit">Save planner</button>
+            </form>
+          </div>
+
+          <div style={styles.panel}>
+            <h2 style={styles.subheading}>{editingActivityId ? 'Edit activity' : 'Add activity'}</h2>
+            <form onSubmit={submitActivity} style={styles.form}>
+              <input
+                style={styles.input}
+                value={activityForm.title}
+                onChange={(event) => setActivityForm({ ...activityForm, title: event.target.value })}
+                placeholder="Activity title"
+                required
+              />
+              <input
+                style={styles.input}
+                value={activityForm.category}
+                onChange={(event) => setActivityForm({ ...activityForm, category: event.target.value })}
+                placeholder="Category"
+              />
+              <div style={styles.timeGrid}>
+                <input
+                  style={styles.input}
+                  type="time"
+                  value={activityForm.start_time}
+                  onChange={(event) => setActivityForm({ ...activityForm, start_time: event.target.value })}
+                />
+                <input
+                  style={styles.input}
+                  type="time"
+                  value={activityForm.end_time}
+                  onChange={(event) => setActivityForm({ ...activityForm, end_time: event.target.value })}
+                />
+              </div>
+              <textarea
+                style={styles.textarea}
+                value={activityForm.description}
+                onChange={(event) => setActivityForm({ ...activityForm, description: event.target.value })}
+                placeholder="Description"
+              />
+              <div style={styles.actions}>
+                <button style={styles.primaryButton} type="submit">
+                  {editingActivityId ? 'Update activity' : 'Add activity'}
+                </button>
+                {editingActivityId && (
+                  <button
+                    style={styles.button}
+                    type="button"
+                    onClick={() => {
+                      setEditingActivityId(null);
+                      setActivityForm(emptyActivity);
+                    }}
+                  >
+                    Cancel
+                  </button>
                 )}
               </div>
-
-              <div style={styles.actions}>
-                <button style={styles.button} onClick={() => editActivity(activity)}>Edit</button>
-                <button style={styles.dangerButton} onClick={() => deleteActivity(activity.id)}>Delete</button>
-              </div>
-            </article>
-          ))}
+            </form>
+          </div>
         </div>
-      </section>
+      )}
+
+      {appView === 'planner' && (
+        <section style={styles.panel}>
+          <h2 style={styles.subheading}>Activities</h2>
+          {!planner?.activities?.length && <p style={styles.muted}>No activities yet.</p>}
+          <div style={styles.activityList}>
+            {planner?.activities?.map((activity) => (
+              <article key={activity.id} style={styles.activityItem}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <strong>{activity.title}</strong>
+                    {getStatusBadge(activity.status)}
+                  </div>
+                  <p style={styles.muted}>
+                    {[activity.start_time, activity.end_time].filter(Boolean).join(' – ') || 'No time set'}
+                    {activity.category ? ` | ${activity.category}` : ''}
+                  </p>
+                  {activity.description && <p>{activity.description}</p>}
+
+                  {/* Status check-in buttons */}
+                  <div style={{ ...styles.actions, marginTop: '0.5rem' }}>
+                    {CHECKIN_STATUSES.map((s) => {
+                      // Primitive state machine for UI display logic (Slice 1 requirement)
+                      const allowedStates = {
+                        planned: ['in_progress', 'partial', 'done', 'not_done', 'rescheduled'],
+                        in_progress: ['partial', 'done', 'not_done', 'rescheduled'],
+                        partial: ['done', 'not_done', 'rescheduled'],
+                        done: [],
+                        not_done: [],
+                        rescheduled: [],
+                        cancelled: [],
+                      };
+                      const isAllowed = (allowedStates[activity.status] || []).includes(s.value);
+                      
+                      if (!isAllowed && activity.status !== s.value) return null;
+
+                      return (
+                        <button
+                          key={s.value}
+                          style={{
+                            ...styles.smallButton,
+                            borderColor: s.color,
+                            color: activity.status === s.value ? '#fff' : s.color,
+                            background: activity.status === s.value ? s.color : '#fff',
+                          }}
+                          onClick={() => openCheckinModal(activity, s.value)}
+                          disabled={activity.status === s.value || !isAllowed}
+                        >
+                          {s.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* History toggle */}
+                  <button
+                    style={{ ...styles.linkButton, marginTop: '0.5rem' }}
+                    onClick={() => loadCheckinHistory(activity.id)}
+                  >
+                    {historyActivityId === activity.id ? 'Hide history' : 'Show history'}
+                  </button>
+
+                  {/* Check-in history */}
+                  {historyActivityId === activity.id && (
+                    <div style={styles.historyList}>
+                      {checkinHistory.length === 0 && (
+                        <p style={styles.muted}>No check-ins yet.</p>
+                      )}
+                      {checkinHistory.map((ci) => (
+                        <div key={ci.id} style={styles.historyItem}>
+                          <span>{getStatusBadge(ci.new_state)}</span>
+                          <span style={styles.muted}>
+                            {new Date(ci.timestamp).toLocaleString()}
+                          </span>
+                          {ci.notes && <span> — {ci.notes}</span>}
+                          {ci.missed_reason && (
+                            <span style={{ color: '#b42318' }}>
+                              {' '}| Reason: {ci.missed_reason.reason_code.replace('_', ' ')}
+                              {ci.missed_reason.free_text ? ` (${ci.missed_reason.free_text})` : ''}
+                            </span>
+                          )}
+                          {ci.alternate_activity && (
+                            <span style={{ color: '#3538cd' }}>
+                              {' '}| Instead: {ci.alternate_activity.description}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.actions}>
+                  <button style={styles.button} onClick={() => editActivity(activity)}>Edit</button>
+                  <button style={styles.dangerButton} onClick={() => deleteActivity(activity.id)}>Delete</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ---- Not Done check-in modal ---- */}
       {checkinModal && (
