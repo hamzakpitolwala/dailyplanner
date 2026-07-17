@@ -56,6 +56,7 @@ class ActivityResponse(ActivityBase):
     id: int
     planner_id: int
     status: str
+    carried_over_from_id: int | None = None
     policy: ActivityPolicyResponse | None = None
     history_events: list[HistoryEventResponse] = []
 

@@ -46,6 +46,7 @@ class Activity(Base):
     start_time = Column(Time, nullable=True)
     end_time = Column(Time, nullable=True)
     status = Column(String(32), default="planned", nullable=False)
+    carried_over_from_id = Column(Integer, ForeignKey("activities.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

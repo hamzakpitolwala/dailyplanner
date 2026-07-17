@@ -86,6 +86,7 @@ class HistoryEventCreate(BaseModel):
     action_type: ActionType
     new_state: ActivityStatus
     notes: str | None = Field(default=None, max_length=1000)
+    target_date: str | None = None  # Used when action_type=status_change and new_state=rescheduled
     missed_reason: MissedReasonCreate | None = None
     alternate_activity: AlternateActivityCreate | None = None
 

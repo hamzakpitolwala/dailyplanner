@@ -60,6 +60,7 @@ function App() {
   const [reasonText, setReasonText] = useState('');
   const [altDescription, setAltDescription] = useState('');
   const [altCategory, setAltCategory] = useState('');
+  const [targetDate, setTargetDate] = useState('');
 
   // Check-in history
   const [historyActivityId, setHistoryActivityId] = useState(null);
@@ -274,7 +275,7 @@ function App() {
   // --- Check-in logic ---
 
   const openCheckinModal = (activity, statusValue) => {
-    if (statusValue === 'not_done') {
+    if (statusValue === 'not_done' || statusValue === 'rescheduled') {
       // Open the conditional modal
       setCheckinModal({ activity, status: statusValue });
       setCheckinNotes('');
@@ -282,13 +283,17 @@ function App() {
       setReasonText('');
       setAltDescription('');
       setAltCategory('');
+      
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setTargetDate(tomorrow.toISOString().slice(0, 10));
     } else {
-      // Directly submit for done/partial/rescheduled
+      // Directly submit for done/partial
       submitCheckin(activity.id, statusValue, '');
     }
   };
 
-  const submitCheckin = async (activityId, status, notes, missedReason = null, alternate = null) => {
+  const submitCheckin = async (activityId, status, notes, missedReason = null, alternate = null, tgtDate = null) => {
     const payload = { action_type: 'status_change', new_state: status, notes: notes || null };
 
     if (status === 'not_done' && missedReason) {
@@ -296,6 +301,9 @@ function App() {
     }
     if (status === 'not_done' && alternate) {
       payload.alternate_activity = alternate;
+    }
+    if (status === 'rescheduled' && tgtDate) {
+      payload.target_date = tgtDate;
     }
 
     try {
@@ -323,7 +331,7 @@ function App() {
       ? { description: altDescription, category: altCategory || null }
       : null;
 
-    submitCheckin(activity.id, status, checkinNotes, missedReason, alternate);
+    submitCheckin(activity.id, status, checkinNotes, missedReason, alternate, targetDate);
   };
 
   const loadCheckinHistory = async (activityId) => {
@@ -579,6 +587,11 @@ function App() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <strong>{activity.title}</strong>
                     {getStatusBadge(activity.status)}
+                    {activity.carried_over_from_id && (
+                      <span style={{ fontSize: '0.8rem', color: '#b54708', background: '#ffead5', padding: '0.1rem 0.4rem', borderRadius: 4 }}>
+                        ↳ Carried over
+                      </span>
+                    )}
                   </div>
                   <p style={styles.muted}>
                     {[activity.start_time, activity.end_time].filter(Boolean).join(' – ') || 'No time set'}
@@ -591,9 +604,9 @@ function App() {
                     {CHECKIN_STATUSES.map((s) => {
                       // Primitive state machine for UI display logic (Slice 1 requirement)
                       const allowedStates = {
-                        planned: ['in_progress', 'partial', 'done', 'not_done', 'rescheduled'],
-                        in_progress: ['partial', 'done', 'not_done', 'rescheduled'],
-                        partial: ['done', 'not_done', 'rescheduled'],
+                        planned: ['in_progress', 'partial', 'done', 'not_done', 'rescheduled', 'cancelled'],
+                        in_progress: ['partial', 'done', 'not_done', 'rescheduled', 'cancelled'],
+                        partial: ['done', 'not_done', 'rescheduled', 'cancelled'],
                         done: [],
                         not_done: [],
                         rescheduled: [],
@@ -669,18 +682,29 @@ function App() {
         </section>
       )}
 
-      {/* ---- Not Done check-in modal ---- */}
+      {/* ---- Check-in modal ---- */}
       {checkinModal && (
         <div style={styles.modalOverlay} onClick={() => setCheckinModal(null)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h3 style={styles.subheading}>
-              Check in: {checkinModal.activity.title}
+              {checkinModal.status === 'not_done' ? 'Mark as Not Done' : 'Reschedule Activity'}
             </h3>
-            <p style={{ ...styles.muted, marginBottom: '0.75rem' }}>
-              Status: <strong style={{ color: '#b42318' }}>Not Done</strong>
-            </p>
+            <p style={{ margin: '0 0 1rem', fontWeight: 'bold' }}>{checkinModal.activity.title}</p>
 
             <form onSubmit={handleCheckinModalSubmit} style={styles.form}>
+              {checkinModal.status === 'rescheduled' && (
+                <label style={styles.label}>
+                  Target Date <span style={{ color: '#b42318' }}>*</span>
+                  <input
+                    style={styles.input}
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    required
+                  />
+                </label>
+              )}
+
               <label style={styles.label}>
                 Notes (optional)
                 <textarea
@@ -692,7 +716,7 @@ function App() {
               </label>
 
               {/* Reason picker (shown if policy requires reason or user wants to provide one) */}
-              {checkinModal.activity.policy?.requires_reason !== false && (
+              {checkinModal.status === 'not_done' && checkinModal.activity.policy?.requires_reason !== false && (
                 <>
                   <label style={styles.label}>
                     Why was it missed? {checkinModal.activity.policy?.requires_reason && <span style={{ color: '#b42318' }}>*</span>}
@@ -723,7 +747,7 @@ function App() {
               )}
 
               {/* Alternate activity (shown if policy allows) */}
-              {checkinModal.activity.policy?.allows_alternate !== false && (
+              {checkinModal.status === 'not_done' && checkinModal.activity.policy?.allows_alternate !== false && (
                 <>
                   <label style={styles.label}>
                     What did you do instead? (optional)

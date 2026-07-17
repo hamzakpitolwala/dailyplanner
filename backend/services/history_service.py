@@ -9,8 +9,9 @@ from backend.db.models.history_table import (
     AlternateActivity,
     MissedReason,
 )
-from backend.db.models.planner_table import Activity
+from backend.db.models.planner_table import Activity, ActivityPolicy
 from backend.schemas.history_schema import ActionType, ActivityStatus, HistoryEventCreate
+import datetime
 
 
 class ActivityStateMachine:
@@ -94,6 +95,43 @@ class HistoryService:
                         "A reason is required when marking this activity as not done."
                     )
             # (If allows_alternate is false, we simply ignore any provided alternate)
+
+            # --- Reschedule logic ---
+            if data.new_state == ActivityStatus.rescheduled:
+                if not data.target_date:
+                    raise ValueError("target_date is required when rescheduling.")
+                try:
+                    target_date = datetime.date.fromisoformat(data.target_date)
+                except ValueError:
+                    raise ValueError("Invalid target_date format. Use YYYY-MM-DD.")
+                
+                # Prevent scheduling if time has conflict - for now we just create it on the target date.
+                from backend.services.planner_service import PlannerService
+                planner_svc = PlannerService()
+                target_planner = planner_svc.get_or_create_planner_for_date(db, user_id, target_date)
+                
+                # Basic conflict check: same start/end time
+                if activity.start_time and activity.end_time:
+                    for exist_act in target_planner.activities:
+                        if exist_act.start_time == activity.start_time and exist_act.end_time == activity.end_time and exist_act.status not in ("cancelled", "rescheduled"):
+                            raise ValueError(f"Time conflict on {target_date.isoformat()} with activity: {exist_act.title}")
+
+                # Create carryover activity
+                carryover = Activity(
+                    user_id=user_id,
+                    planner_id=target_planner.id,
+                    title=activity.title,
+                    description=activity.description,
+                    category=activity.category,
+                    start_time=activity.start_time,
+                    end_time=activity.end_time,
+                    status="planned",
+                    carried_over_from_id=activity.id
+                )
+                db.add(carryover)
+                db.flush()
+                # Carryover gets default policy
+                db.add(ActivityPolicy(activity_id=carryover.id, requires_reason=True, allows_alternate=True))
 
         # --- Persist the event ---
         event = ActivityHistoryEvent(
