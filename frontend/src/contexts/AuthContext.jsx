@@ -66,4 +66,8 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  // During Vite HMR, the provider might unmount and context becomes null briefly
+  return context || { loading: true };
+};
