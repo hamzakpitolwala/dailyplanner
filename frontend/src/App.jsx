@@ -380,8 +380,45 @@ function App() {
     );
   };
 
-  // --- Auth screen ---
+  // --- Templates Logic ---
+  const submitTemplate = async (e) => {
+    e.preventDefault();
+    try {
+      await apiRequest(`/templates`, {
+        method: 'POST',
+        body: JSON.stringify({ name: 'New Template', description: '' }),
+      });
+      await loadTemplates();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
 
+  const toggleTemplateInUse = async (template) => {
+    try {
+      await apiRequest(`/templates/${template.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ in_use: !template.in_use }),
+      });
+      await loadTemplates();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const addTemplateActivity = async (templateId) => {
+    try {
+      await apiRequest(`/templates/${templateId}/activities`, {
+        method: 'POST',
+        body: JSON.stringify({ title: 'New Activity', category: 'General' }),
+      });
+      await loadTemplates();
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  // --- Auth screen ---
   if (!token) {
     return (
       <main style={styles.shell}>
