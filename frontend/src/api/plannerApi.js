@@ -7,7 +7,7 @@ export const fetchTodayPlanner = async (date) => {
 
 export const updatePlannerInfo = async (date, title, notes) => {
   return await apiRequest(`${PLANNER_BASE}/today?planner_date=${date}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify({ title, notes: notes || null }),
   });
 };
@@ -21,7 +21,7 @@ export const createActivity = async (plannerId, activityData) => {
 
 export const updateActivity = async (activityId, activityData) => {
   return await apiRequest(`${PLANNER_BASE}/activities/${activityId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(activityData),
   });
 };

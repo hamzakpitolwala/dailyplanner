@@ -11,11 +11,19 @@ export const apiRequest = async (path, options = {}) => {
     },
   });
 
-  if (response.status === 204) return null;
+  const text = await response.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (err) {
+    if (!response.ok) {
+      throw new Error(text || 'Request failed');
+    }
+    data = null;
+  }
 
-  const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.detail || 'Request failed');
+    throw new Error(data?.detail || 'Request failed');
   }
   return data;
 };

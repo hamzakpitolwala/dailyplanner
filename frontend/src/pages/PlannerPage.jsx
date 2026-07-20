@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { styles } from '../utils/styles';
 import { todayIso, emptyActivity } from '../utils/constants';
-import { 
-  fetchTodayPlanner, 
-  updatePlannerInfo, 
-  createActivity, 
-  updateActivity, 
-  deleteActivity, 
-  fetchActivityHistory, 
-  submitActivityCheckin 
+import {
+  fetchTodayPlanner,
+  updatePlannerInfo,
+  createActivity,
+  updateActivity,
+  deleteActivity,
+  fetchActivityHistory,
+  submitActivityCheckin
 } from '../api/plannerApi';
 import { ActivityList } from '../components/planner/ActivityList';
 import { ActivityForm } from '../components/planner/ActivityForm';
@@ -19,7 +19,7 @@ export const PlannerPage = ({ setMessage }) => {
   const [plannerDate, setPlannerDate] = useState(todayIso());
   const [plannerTitle, setPlannerTitle] = useState('');
   const [plannerNotes, setPlannerNotes] = useState('');
-  
+
   const [activityForm, setActivityForm] = useState(emptyActivity);
   const [editingActivityId, setEditingActivityId] = useState(null);
 
@@ -43,6 +43,7 @@ export const PlannerPage = ({ setMessage }) => {
       setPlannerTitle(data.title);
       setPlannerNotes(data.notes || '');
     } catch (error) {
+      console.error(error.message);
       setMessage(error.message);
     }
   };
@@ -107,7 +108,7 @@ export const PlannerPage = ({ setMessage }) => {
       setReasonText('');
       setAltDescription('');
       setAltCategory('');
-      
+
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setTargetDate(tomorrow.toISOString().slice(0, 10));
@@ -195,7 +196,7 @@ export const PlannerPage = ({ setMessage }) => {
         </div>
 
         {/* Add/Edit Activity Form */}
-        <ActivityForm 
+        <ActivityForm
           activityForm={activityForm}
           setActivityForm={setActivityForm}
           editingActivityId={editingActivityId}
@@ -207,7 +208,7 @@ export const PlannerPage = ({ setMessage }) => {
       {/* Activities List */}
       <section style={styles.panel}>
         <h2 style={styles.subheading}>Planned Activities</h2>
-        <ActivityList 
+        <ActivityList
           activities={planner.activities}
           plannerDate={plannerDate}
           openCheckinModal={openCheckinModal}
@@ -219,7 +220,7 @@ export const PlannerPage = ({ setMessage }) => {
         />
       </section>
 
-      <CheckinModal 
+      <CheckinModal
         checkinModal={checkinModal}
         setCheckinModal={setCheckinModal}
         checkinNotes={checkinNotes}

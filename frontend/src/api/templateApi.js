@@ -13,7 +13,7 @@ export const createTemplate = async (name, description = '') => {
 
 export const updateTemplateStatus = async (templateId, inUse) => {
   return await apiRequest(`/templates/${templateId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify({ in_use: inUse }),
   });
 };
