@@ -419,7 +419,7 @@ function App() {
   };
 
   // --- Auth screen ---
-  if (!token) {
+  if (!token || !user) {
     return (
       <main style={styles.shell}>
         <section style={styles.panel}>
