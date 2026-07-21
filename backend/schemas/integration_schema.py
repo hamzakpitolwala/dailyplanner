@@ -32,7 +32,9 @@ class ExternalSyncedEventBase(BaseModel):
     parsed_summary: str
     start_time: datetime | None = None
     end_time: datetime | None = None
-    metadata: dict | None = None
+    metadata: dict | None = Field(default=None, validation_alias="extra_metadata", serialization_alias="metadata")
+
+    model_config = {"populate_by_name": True}
 
 
 class ExternalSyncedEventCreate(ExternalSyncedEventBase):
@@ -44,4 +46,4 @@ class ExternalSyncedEventResponse(ExternalSyncedEventBase):
     user_id: UUID
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
