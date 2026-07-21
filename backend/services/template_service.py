@@ -1,65 +1,62 @@
-"""Service layer for planner and activity templates."""
+from datetime import datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy.orm import Session, selectinload
 
-from backend.db.models.template_table import PlannerTemplate, ActivityTemplate
+from backend.db.models.core import Task
+from backend.db.models.templates import PlannerTemplate, TemplateTask
 from backend.schemas.template_schema import (
     PlannerTemplateCreate,
     PlannerTemplateUpdate,
-    ActivityTemplateCreate,
-    ActivityTemplateUpdate,
+    TemplateTaskCreate,
+    TemplateTaskUpdate,
 )
 
 
 class TemplateService:
+    """Service layer for planner templates and template tasks."""
+
     # ------------------------------------------------------------------
     # Planner Templates
     # ------------------------------------------------------------------
 
-    def list_templates(self, db: Session, user_id: int) -> list[PlannerTemplate]:
+    def list_templates(self, db: Session, user_id: UUID) -> list[PlannerTemplate]:
         return (
             db.query(PlannerTemplate)
-            .options(selectinload(PlannerTemplate.activity_templates))
+            .options(selectinload(PlannerTemplate.template_tasks))
             .filter(PlannerTemplate.user_id == user_id)
             .order_by(PlannerTemplate.created_at.desc())
             .all()
         )
 
-    def get_template(self, db: Session, user_id: int, template_id: int) -> PlannerTemplate | None:
+    def get_template(self, db: Session, user_id: UUID, template_id: UUID) -> PlannerTemplate | None:
         return (
             db.query(PlannerTemplate)
-            .options(selectinload(PlannerTemplate.activity_templates))
+            .options(selectinload(PlannerTemplate.template_tasks))
             .filter(PlannerTemplate.id == template_id, PlannerTemplate.user_id == user_id)
-            .first()
-        )
-        
-    def get_in_use_template(self, db: Session, user_id: int) -> PlannerTemplate | None:
-        return (
-            db.query(PlannerTemplate)
-            .options(selectinload(PlannerTemplate.activity_templates))
-            .filter(PlannerTemplate.user_id == user_id, PlannerTemplate.in_use == True)
             .first()
         )
 
     def create_template(
-        self, db: Session, user_id: int, data: PlannerTemplateCreate
+        self, db: Session, user_id: UUID, data: PlannerTemplateCreate
     ) -> PlannerTemplate:
-        # If this is set to in_use, unset others
-        if data.in_use:
-            self._unset_in_use(db, user_id)
-
-        template = PlannerTemplate(user_id=user_id, **data.model_dump())
+        payload = data.model_dump(exclude={"template_tasks"})
+        template = PlannerTemplate(user_id=user_id, **payload)
         db.add(template)
+        db.flush()
+
+        # Add initial nested template tasks if provided
+        for task_data in data.template_tasks:
+            tmpl_task = TemplateTask(template_id=template.id, **task_data.model_dump())
+            db.add(tmpl_task)
+
         db.commit()
         db.refresh(template)
         return template
 
     def update_template(
-        self, db: Session, user_id: int, template: PlannerTemplate, data: PlannerTemplateUpdate
+        self, db: Session, template: PlannerTemplate, data: PlannerTemplateUpdate
     ) -> PlannerTemplate:
-        if data.in_use and not template.in_use:
-            self._unset_in_use(db, user_id)
-
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(template, field, value)
 
@@ -71,44 +68,70 @@ class TemplateService:
         db.delete(template)
         db.commit()
 
-    def _unset_in_use(self, db: Session, user_id: int) -> None:
-        db.query(PlannerTemplate).filter(
-            PlannerTemplate.user_id == user_id, PlannerTemplate.in_use == True
-        ).update({"in_use": False})
-        db.flush()
+    def instantiate_template_to_tasks(
+        self, db: Session, user_id: UUID, template_id: UUID, start_date: datetime
+    ) -> list[Task]:
+        """Instantiates all tasks in a template into concrete user tasks relative to start_date."""
+        template = self.get_template(db, user_id, template_id)
+        if not template:
+            raise ValueError("Template not found")
 
-    # ------------------------------------------------------------------
-    # Activity Templates
-    # ------------------------------------------------------------------
+        created_tasks = []
+        for tmpl_task in template.template_tasks:
+            calculated_due = start_date + timedelta(days=tmpl_task.relative_day_offset)
+            if tmpl_task.target_time:
+                calculated_due = calculated_due.replace(
+                    hour=tmpl_task.target_time.hour,
+                    minute=tmpl_task.target_time.minute,
+                    second=tmpl_task.target_time.second,
+                )
 
-    def create_activity_template(
-        self, db: Session, template: PlannerTemplate, data: ActivityTemplateCreate
-    ) -> ActivityTemplate:
-        activity = ActivityTemplate(planner_template_id=template.id, **data.model_dump())
-        db.add(activity)
-        db.commit()
-        db.refresh(activity)
-        return activity
-
-    def get_activity_template(self, db: Session, template_id: int, activity_id: int) -> ActivityTemplate | None:
-        return (
-            db.query(ActivityTemplate)
-            .filter(
-                ActivityTemplate.id == activity_id,
-                ActivityTemplate.planner_template_id == template_id,
+            task = Task(
+                user_id=user_id,
+                title=tmpl_task.title,
+                description=tmpl_task.description,
+                priority=tmpl_task.priority,
+                checklist=tmpl_task.checklist,
+                source_template_name=template.name,
+                due_date=calculated_due,
             )
+            db.add(task)
+            created_tasks.append(task)
+
+        db.commit()
+        return created_tasks
+
+    # ------------------------------------------------------------------
+    # Template Tasks
+    # ------------------------------------------------------------------
+
+    def create_template_task(
+        self, db: Session, template: PlannerTemplate, data: TemplateTaskCreate
+    ) -> TemplateTask:
+        task = TemplateTask(template_id=template.id, **data.model_dump())
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        return task
+
+    def get_template_task(
+        self, db: Session, template_id: UUID, task_id: UUID
+    ) -> TemplateTask | None:
+        return (
+            db.query(TemplateTask)
+            .filter(TemplateTask.id == task_id, TemplateTask.template_id == template_id)
             .first()
         )
 
-    def update_activity_template(
-        self, db: Session, activity: ActivityTemplate, data: ActivityTemplateUpdate
-    ) -> ActivityTemplate:
+    def update_template_task(
+        self, db: Session, task: TemplateTask, data: TemplateTaskUpdate
+    ) -> TemplateTask:
         for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(activity, field, value)
+            setattr(task, field, value)
         db.commit()
-        db.refresh(activity)
-        return activity
+        db.refresh(task)
+        return task
 
-    def delete_activity_template(self, db: Session, activity: ActivityTemplate) -> None:
-        db.delete(activity)
+    def delete_template_task(self, db: Session, task: TemplateTask) -> None:
+        db.delete(task)
         db.commit()

@@ -1,65 +1,67 @@
-"""Pydantic schemas for templates."""
-
-from datetime import datetime
+from datetime import datetime, time
+from uuid import UUID
 from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
-# Activity Templates
+# Template Task Schemas
 # ---------------------------------------------------------------------------
 
-class ActivityTemplateBase(BaseModel):
-    title: str = Field(min_length=1, max_length=160)
-    description: str | None = Field(default=None, max_length=1000)
-    category: str | None = Field(default=None, max_length=80)
-    start_time: str | None = None
-    end_time: str | None = None
+class TemplateTaskBase(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    priority: int = Field(default=1, ge=1)
+    category_label: str | None = Field(default=None, max_length=50)
+    relative_day_offset: int = Field(default=0, ge=0)
+    target_time: time | None = None
+    checklist: list[dict] = Field(default_factory=list)
 
 
-class ActivityTemplateCreate(ActivityTemplateBase):
+class TemplateTaskCreate(TemplateTaskBase):
     pass
 
 
-class ActivityTemplateUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=160)
-    description: str | None = Field(default=None, max_length=1000)
-    category: str | None = Field(default=None, max_length=80)
-    start_time: str | None = None
-    end_time: str | None = None
+class TemplateTaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    priority: int | None = Field(default=None, ge=1)
+    category_label: str | None = Field(default=None, max_length=50)
+    relative_day_offset: int | None = Field(default=None, ge=0)
+    target_time: time | None = None
+    checklist: list[dict] | None = None
 
 
-class ActivityTemplateResponse(ActivityTemplateBase):
-    id: int
-    planner_template_id: int
+class TemplateTaskResponse(TemplateTaskBase):
+    id: UUID
+    template_id: UUID
     created_at: datetime
-    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 # ---------------------------------------------------------------------------
-# Planner Templates
+# Planner Template Schemas
 # ---------------------------------------------------------------------------
 
 class PlannerTemplateBase(BaseModel):
-    name: str = Field(min_length=1, max_length=160)
-    in_use: bool = False
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = None
 
 
 class PlannerTemplateCreate(PlannerTemplateBase):
-    pass
+    template_tasks: list[TemplateTaskCreate] = Field(default_factory=list)
 
 
 class PlannerTemplateUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=160)
-    in_use: bool | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
 
 
 class PlannerTemplateResponse(PlannerTemplateBase):
-    id: int
-    user_id: int
+    id: UUID
+    user_id: UUID
     created_at: datetime
     updated_at: datetime
-    activity_templates: list[ActivityTemplateResponse] = []
+    template_tasks: list[TemplateTaskResponse] = []
 
     model_config = {"from_attributes": True}

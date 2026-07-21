@@ -1,3 +1,5 @@
+from datetime import datetime
+from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -6,7 +8,7 @@ class UserCreate(BaseModel):
 
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    username: str = Field(min_length=3, max_length=64)
+    timezone: str = Field(default="UTC", max_length=50)
 
 
 class UserLogin(BaseModel):
@@ -19,9 +21,11 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     """Schema returned when exposing user data."""
 
-    id: int
+    id: UUID
     email: str
-    username: str
+    timezone: str
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 

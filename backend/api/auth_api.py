@@ -1,10 +1,12 @@
+"""API routes for authentication (register, login, token, current user)."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from backend.core.oauth2 import get_current_user
 from backend.db.database import get_db
-from backend.db.models.user_table import User
+from backend.db.models.core import User
 from backend.schemas.auth_schema import TokenResponse, UserCreate, UserLogin, UserResponse
 from backend.services.auth_services import AuthService
 
@@ -16,8 +18,10 @@ _service = AuthService()
 async def register(
     user: UserCreate, db: Session = Depends(get_db)
 ) -> UserResponse:
+    # NOTE: UserCreate no longer has `username` — the new User model
+    # only tracks email, password, and timezone.
     try:
-        result = _service.register(db, user.username, user.email, user.password)
+        result = _service.register(db, user.email, user.password, user.timezone)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
@@ -42,6 +46,8 @@ async def token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
+    # NOTE: OAuth2PasswordRequestForm.username is used as the email here,
+    # since login() takes email, not username.
     access_token = _service.login(db, form_data.username, form_data.password)
     if not access_token:
         raise HTTPException(
