@@ -1,32 +1,33 @@
+"""Templates models: PlannerTemplate, TemplateTask.
+
+Portable types only (no JSONB/UUID) for SQLite / CI compatibility.
+"""
+
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, Time
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from backend.db.database import Base
 
 
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+
 class PlannerTemplate(Base):
     __tablename__ = "planner_templates"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        index=True,
-    )
+    id = Column(String(36), primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -37,23 +38,16 @@ class PlannerTemplate(Base):
     # Relationships
     user = relationship("User", back_populates="planner_templates")
     template_tasks = relationship(
-        "TemplateTask",
-        back_populates="planner_template",
-        cascade="all, delete-orphan",
+        "TemplateTask", back_populates="template", cascade="all, delete-orphan"
     )
 
 
 class TemplateTask(Base):
     __tablename__ = "template_tasks"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        index=True,
-    )
+    id = Column(String(36), primary_key=True, default=_uuid, index=True)
     template_id = Column(
-        UUID(as_uuid=True),
+        String(36),
         ForeignKey("planner_templates.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -63,11 +57,9 @@ class TemplateTask(Base):
     priority = Column(Integer, server_default="1", nullable=False)
     category_label = Column(String(50), nullable=True)
     relative_day_offset = Column(Integer, server_default="0", nullable=False)
-    target_time = Column(Time, nullable=True)
-    checklist = Column(JSONB, server_default="[]", nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    target_time = Column(String(8), nullable=True)   # stored as "HH:MM:SS" string
+    checklist = Column(JSON, server_default="[]", nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
-    planner_template = relationship("PlannerTemplate", back_populates="template_tasks")
+    template = relationship("PlannerTemplate", back_populates="template_tasks")

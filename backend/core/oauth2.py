@@ -21,17 +21,26 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    """Decode the JWT and return the corresponding ``User``, or raise 401."""
+    """Decode the JWT and return the corresponding ``User``, or raise 401.
+
+    The JWT payload produced by auth_services.login() looks like:
+        {"sub": "<user-uuid-string>", "email": "user@example.com"}
+    We look up the user by their UUID (sub) for correctness.
+    """
     try:
         payload = decode_access_token(token)
     except JWTError:
         raise _credentials_exception
 
-    email: str | None = payload.get("sub")
-    if not email:
+    user_id: str | None = payload.get("sub")
+    if not user_id:
         raise _credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    # sub contains the UUID string; fall back to email for OAuth-issued tokens
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        # Fallback: some older tokens may carry email in sub
+        user = db.query(User).filter(User.email == user_id).first()
     if not user:
         raise _credentials_exception
 

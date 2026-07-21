@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.auth_api import router as auth_router
 from backend.api.oauth2_api import router as oauth2_router
-from backend.api.planner_api import router as planner_router
+from backend.api.planner_api import router as planner_router, categories_router
 from backend.api.template_api import router as template_router
 from backend.core.config import settings
 from backend.db.database import Base, engine
@@ -45,6 +45,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(oauth2_router)
 app.include_router(planner_router)
+app.include_router(categories_router)
 app.include_router(template_router)
 
 
