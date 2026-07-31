@@ -163,6 +163,10 @@ from backend.schemas.core_schema import (
     TaskCreate,
     TaskResponse,
     TaskUpdate,
+    MissedReasonResponse,
+    AlternateActivityResponse,
+    TaskCheckinCreate,
+    TaskCheckinResponse,
 )
 from backend.services.task_service import TaskService
 
@@ -200,6 +204,29 @@ async def create_task(
     return _service.create_task(db, user.id, payload)
 
 
+@router.get("/missed-reasons", response_model=list[MissedReasonResponse])
+async def list_missed_reasons(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return _service.list_missed_reasons(db, user.id)
+
+@router.get("/missed-checkins", response_model=list[TaskResponse])
+async def list_missed_checkins(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[TaskResponse]:
+    return _service.list_pending_checkins(db, user.id)
+
+
+@router.get("/alternate-activities", response_model=list[AlternateActivityResponse])
+async def list_alternate_activities(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return _service.list_alternate_activities(db, user.id)
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: UUID,
@@ -210,6 +237,20 @@ async def get_task(
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task
+
+
+@router.post("/{task_id}/checkin", response_model=TaskCheckinResponse, status_code=status.HTTP_201_CREATED)
+async def create_task_checkin(
+    task_id: UUID,
+    payload: TaskCheckinCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    task = _service.get_task(db, user.id, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return _service.create_task_checkin(db, task, payload.model_dump())
+
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)

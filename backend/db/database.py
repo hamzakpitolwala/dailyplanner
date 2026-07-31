@@ -3,6 +3,22 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from backend.core.config import settings
+from sqlalchemy.types import TypeDecorator, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+class PortableUUID(TypeDecorator):
+    """
+    Portable UUID type for SQLAlchemy models.
+    Maps to native UUID on PostgreSQL and String(36) on SQLite.
+    """
+    impl = String
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(PG_UUID(as_uuid=False))
+        else:
+            return dialect.type_descriptor(String(36))
 
 if not settings.DATABASE_URL:
     raise RuntimeError(

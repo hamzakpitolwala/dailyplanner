@@ -1,6 +1,6 @@
 from datetime import datetime, time
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -12,8 +12,16 @@ class TemplateTaskBase(BaseModel):
     description: str | None = None
     priority: int = Field(default=1, ge=1)
     category_label: str | None = Field(default=None, max_length=50)
-    relative_day_offset: int = Field(default=0, ge=0)
-    target_time: time | None = None
+    relative_day_offset: int = 0
+    target_time: str | None = Field(default=None, max_length=8)
+
+    @field_validator('target_time', mode='before')
+    @classmethod
+    def validate_target_time(cls, v):
+        if isinstance(v, time):
+            return v.strftime("%H:%M:%S")
+        return v
+    duration_minutes: int = Field(default=60)
     checklist: list[dict] = Field(default_factory=list)
 
 
@@ -26,8 +34,9 @@ class TemplateTaskUpdate(BaseModel):
     description: str | None = None
     priority: int | None = Field(default=None, ge=1)
     category_label: str | None = Field(default=None, max_length=50)
-    relative_day_offset: int | None = Field(default=None, ge=0)
-    target_time: time | None = None
+    relative_day_offset: int | None = None
+    target_time: str | None = Field(default=None, max_length=8)
+    duration_minutes: int | None = None
     checklist: list[dict] | None = None
 
 

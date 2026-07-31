@@ -9,7 +9,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, JSON, String, Text, UniqueC
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from backend.db.database import Base
+from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
@@ -19,9 +19,9 @@ def _uuid() -> str:
 class UserOAuthToken(Base):
     __tablename__ = "user_oauth_tokens"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -46,9 +46,9 @@ class UserOAuthToken(Base):
 class ExternalSyncedEvent(Base):
     __tablename__ = "external_synced_events"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

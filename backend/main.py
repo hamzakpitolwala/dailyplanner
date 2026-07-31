@@ -8,6 +8,8 @@ from backend.api.auth_api import router as auth_router
 from backend.api.oauth2_api import router as oauth2_router
 from backend.api.planner_api import router as planner_router, categories_router
 from backend.api.template_api import router as template_router
+from backend.api.user_api import router as user_router
+from backend.api import fixed_block_api
 from backend.core.config import settings
 from backend.db.database import Base, engine
 
@@ -44,9 +46,11 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(oauth2_router)
+app.include_router(fixed_block_api.router)
 app.include_router(planner_router)
 app.include_router(categories_router)
 app.include_router(template_router)
+app.include_router(user_router)
 
 
 @app.get("/health")

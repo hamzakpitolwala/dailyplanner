@@ -1,15 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { styles } from '../utils/styles';
 import { useAuth } from '../contexts/AuthContext';
 import { PlannerPage } from './PlannerPage';
 import { TemplateManager } from '../components/templates/TemplateManager';
+import { FixedBlockManager } from '../components/templates/FixedBlockManager';
+import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
+import { PlannerSelection } from '../components/onboarding/PlannerSelection';
+import { userApi } from '../api/userApi';
 
 export const AppShell = () => {
   const { user, logout } = useAuth();
   const [appView, setAppView] = useState('planner');
   const [message, setMessage] = useState('');
+  const [profile, setProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
-  if (!user) return <p>Loading user profile...</p>;
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await userApi.fetchUserProfile();
+        setProfile(data);
+      } catch (err) {
+        console.error('Failed to load user profile', err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  if (!user || loadingProfile) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+
+  if (profile && !profile.onboarding_completed) {
+    return <OnboardingFlow onComplete={() => setProfile({ ...profile, onboarding_completed: true })} />;
+  }
+
+  if (profile && profile.onboarding_completed && !profile.active_planner_id) {
+    return <PlannerSelection profile={profile} onComplete={(id) => setProfile({ ...profile, active_planner_id: id })} />;
+  }
 
   return (
     <main style={styles.appShell}>
@@ -40,9 +70,12 @@ export const AppShell = () => {
       )}
 
       {appView === 'planner' ? (
-        <PlannerPage setMessage={setMessage} />
+        <PlannerPage setMessage={setMessage} profile={profile} setAppView={setAppView} />
       ) : (
-        <TemplateManager setMessage={setMessage} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <TemplateManager setMessage={setMessage} profile={profile} setProfile={setProfile} setAppView={setAppView} />
+          <FixedBlockManager setMessage={setMessage} />
+        </div>
       )}
     </main>
   );

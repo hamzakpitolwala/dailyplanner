@@ -8,44 +8,21 @@ from sqlalchemy import Column, DateTime, Float, ForeignKey, JSON, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from backend.db.database import Base
+from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
     return str(uuid.uuid4())
 
 
-class AIUserProfile(Base):
-    __tablename__ = "ai_user_profiles"
-
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
-    user_id = Column(
-        String(36),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-        index=True,
-    )
-    personality_type = Column(String(50), nullable=True)
-    productivity_velocity = Column(Float, server_default="1.0", nullable=False)
-    ai_inferred_traits = Column(JSON, nullable=True)
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
-    )
-
-    # Relationships
-    user = relationship("User", back_populates="ai_profile")
 
 
 class AIRecommendation(Base):
     __tablename__ = "ai_recommendations"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

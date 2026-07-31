@@ -36,8 +36,15 @@ def get_current_user(
     if not user_id:
         raise _credentials_exception
 
-    # sub contains the UUID string; fall back to email for OAuth-issued tokens
-    user = db.query(User).filter(User.id == user_id).first()
+    user = None
+    try:
+        from uuid import UUID
+        # If it's a valid UUID, search by id
+        valid_uuid = UUID(user_id)
+        user = db.query(User).filter(User.id == valid_uuid).first()
+    except ValueError:
+        pass
+
     if not user:
         # Fallback: some older tokens may carry email in sub
         user = db.query(User).filter(User.email == user_id).first()

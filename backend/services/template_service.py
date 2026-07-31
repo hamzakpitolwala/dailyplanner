@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -41,13 +42,13 @@ class TemplateService:
         self, db: Session, user_id: UUID, data: PlannerTemplateCreate
     ) -> PlannerTemplate:
         payload = data.model_dump(exclude={"template_tasks"})
-        template = PlannerTemplate(user_id=user_id, **payload)
+        template = PlannerTemplate(user_id=str(user_id), **payload)
         db.add(template)
         db.flush()
 
         # Add initial nested template tasks if provided
         for task_data in data.template_tasks:
-            tmpl_task = TemplateTask(template_id=template.id, **task_data.model_dump())
+            tmpl_task = TemplateTask(template_id=str(template.id), **task_data.model_dump())
             db.add(tmpl_task)
 
         db.commit()
@@ -78,24 +79,35 @@ class TemplateService:
 
         created_tasks = []
         for tmpl_task in template.template_tasks:
-            calculated_due = start_date + timedelta(days=tmpl_task.relative_day_offset)
+            calculated_start = start_date + timedelta(days=tmpl_task.relative_day_offset)
+            calculated_due = calculated_start
+            
             if tmpl_task.target_time:
-                calculated_due = calculated_due.replace(
-                    hour=tmpl_task.target_time.hour,
-                    minute=tmpl_task.target_time.minute,
-                    second=tmpl_task.target_time.second,
-                )
+                try:
+                    # target_time is stored as a string "HH:MM:SS"
+                    hour, minute, second = map(int, tmpl_task.target_time.split(":"))
+                    calculated_start = calculated_start.replace(
+                        hour=hour,
+                        minute=minute,
+                        second=second,
+                    )
+                    calculated_due = calculated_start + timedelta(minutes=tmpl_task.duration_minutes)
+                except Exception:
+                    pass
 
             task = Task(
-                user_id=user_id,
+                id=str(uuid.uuid4()),
+                user_id=str(user_id),
                 title=tmpl_task.title,
                 description=tmpl_task.description,
                 priority=tmpl_task.priority,
                 checklist=tmpl_task.checklist,
                 source_template_name=template.name,
+                start_time=calculated_start,
                 due_date=calculated_due,
             )
             db.add(task)
+            db.flush()
             created_tasks.append(task)
 
         db.commit()
@@ -108,7 +120,7 @@ class TemplateService:
     def create_template_task(
         self, db: Session, template: PlannerTemplate, data: TemplateTaskCreate
     ) -> TemplateTask:
-        task = TemplateTask(template_id=template.id, **data.model_dump())
+        task = TemplateTask(template_id=str(template.id), **data.model_dump())
         db.add(task)
         db.commit()
         db.refresh(task)

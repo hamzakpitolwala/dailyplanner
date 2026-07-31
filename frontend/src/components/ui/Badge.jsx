@@ -1,8 +1,8 @@
-import { CHECKIN_STATUSES } from '../../utils/constants';
+import { TASK_STATUSES } from '../../utils/constants';
 import { styles } from '../../utils/styles';
 
 export const Badge = ({ status }) => {
-  const config = CHECKIN_STATUSES.find((s) => s.value === status) || {
+  const config = TASK_STATUSES.find((s) => s.value === status) || {
     label: status,
     color: '#667085',
   };

@@ -26,7 +26,7 @@ class TaskService:
         )
 
     def create_category(self, db: Session, user_id: UUID, data: CategoryCreate) -> Category:
-        category = Category(user_id=user_id, **data.model_dump())
+        category = Category(user_id=str(user_id), **data.model_dump())
         db.add(category)
         db.commit()
         db.refresh(category)
@@ -50,10 +50,15 @@ class TaskService:
     # ------------------------------------------------------------------
 
     def list_tasks(self, db: Session, user_id: UUID) -> list[Task]:
+        from backend.db.models.core import TaskCheckin
         return (
             db.query(Task)
-            .options(selectinload(Task.category))
-            .filter(Task.user_id == user_id)
+            .options(
+                selectinload(Task.category), 
+                selectinload(Task.checkins).selectinload(TaskCheckin.missed_reason),
+                selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity)
+            )
+            .filter(Task.user_id == str(user_id))
             .order_by(Task.due_date.asc().nulls_last())
             .all()
         )
@@ -62,12 +67,22 @@ class TaskService:
         return (
             db.query(Task)
             .options(selectinload(Task.category))
-            .filter(Task.id == task_id, Task.user_id == user_id)
+            .filter(Task.id == str(task_id), Task.user_id == str(user_id))
             .first()
         )
 
     def create_task(self, db: Session, user_id: UUID, data: TaskCreate) -> Task:
-        task = Task(user_id=user_id, **data.model_dump())
+        payload = data.model_dump()
+        if "category_id" in payload and payload["category_id"]:
+            payload["category_id"] = str(payload["category_id"])
+        
+        # SQLite compat: convert bools to ints
+        if "requires_reason" in payload and isinstance(payload["requires_reason"], bool):
+            payload["requires_reason"] = 1 if payload["requires_reason"] else 0
+        if "allows_alternate" in payload and isinstance(payload["allows_alternate"], bool):
+            payload["allows_alternate"] = 1 if payload["allows_alternate"] else 0
+
+        task = Task(user_id=str(user_id), **payload)
         db.add(task)
         db.commit()
         db.refresh(task)
@@ -80,6 +95,12 @@ class TaskService:
         if payload.get("status") == "completed" and task.status != "completed": #type: ignore
             payload["completed_at"] = datetime.utcnow()
 
+        # SQLite compat: convert bools to ints
+        if "requires_reason" in payload and isinstance(payload["requires_reason"], bool):
+            payload["requires_reason"] = 1 if payload["requires_reason"] else 0
+        if "allows_alternate" in payload and isinstance(payload["allows_alternate"], bool):
+            payload["allows_alternate"] = 1 if payload["allows_alternate"] else 0
+
         for field, value in payload.items():
             setattr(task, field, value)
 
@@ -90,3 +111,54 @@ class TaskService:
     def delete_task(self, db: Session, task: Task) -> None:
         db.delete(task)
         db.commit()
+
+    # ------------------------------------------------------------------
+    # Check-ins & Context
+    # ------------------------------------------------------------------
+
+    def list_pending_checkins(self, db: Session, user_id: UUID) -> list[Task]:
+        from backend.db.models.core import TaskCheckin
+        # Returns tasks that are auto-marked as 'not done' but have no check-in record yet
+        return (
+            db.query(Task)
+            .filter(
+                Task.user_id == str(user_id),
+                Task.status.in_(["pending_not_done", "partial_not_done"]),
+                (Task.requires_reason == 1) | (Task.allows_alternate == 1)
+            )
+            .outerjoin(TaskCheckin)
+            .filter(TaskCheckin.id == None)
+            .all()
+        )
+
+    def list_missed_reasons(self, db: Session, user_id: UUID) -> list:
+        from backend.db.models.core import MissedReason
+        return db.query(MissedReason).filter(
+            (MissedReason.user_id == str(user_id)) | (MissedReason.user_id == None)
+        ).all()
+
+    def list_alternate_activities(self, db: Session, user_id: UUID) -> list:
+        from backend.db.models.core import AlternateActivity
+        return db.query(AlternateActivity).filter(
+            (AlternateActivity.user_id == str(user_id)) | (AlternateActivity.user_id == None)
+        ).all()
+
+    def create_task_checkin(self, db: Session, task: Task, data: dict) -> object:
+        from backend.db.models.core import TaskCheckin
+        payload = data.copy()
+        if "missed_reason_id" in payload and payload["missed_reason_id"]:
+            payload["missed_reason_id"] = str(payload["missed_reason_id"])
+        if "alternate_activity_id" in payload and payload["alternate_activity_id"]:
+            payload["alternate_activity_id"] = str(payload["alternate_activity_id"])
+        
+        checkin = TaskCheckin(task_id=str(task.id), **payload)
+        db.add(checkin)
+        
+        # Also update the task's status
+        task.status = payload["status"]
+        if task.status == "completed":
+            task.completed_at = datetime.utcnow()
+            
+        db.commit()
+        db.refresh(checkin)
+        return checkin

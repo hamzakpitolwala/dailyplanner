@@ -11,16 +11,34 @@ export const createTemplate = async (name, description = '') => {
   });
 };
 
-export const updateTemplateStatus = async (templateId, inUse) => {
-  return await apiRequest(`/templates/${templateId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ in_use: inUse }),
+export const applyTemplate = async (templateId, targetDate) => {
+  return await apiRequest(`/templates/${templateId}/apply?target_date=${targetDate}`, {
+    method: 'POST',
   });
 };
 
-export const createTemplateActivity = async (templateId, title = 'New Activity', category = 'General') => {
-  return await apiRequest(`/templates/${templateId}/activities`, {
+export const createTemplateTask = async (templateId, title = 'New Task', category_label = 'General') => {
+  return await apiRequest(`/templates/${templateId}/tasks`, {
     method: 'POST',
-    body: JSON.stringify({ title, category }),
+    body: JSON.stringify({ title, category_label }),
+  });
+};
+
+export const updateTemplateTask = async (templateId, taskId, updateData) => {
+  return await apiRequest(`/templates/${templateId}/tasks/${taskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updateData),
+  });
+};
+
+export const deleteTemplateTask = async (templateId, taskId) => {
+  return await apiRequest(`/templates/${templateId}/tasks/${taskId}`, {
+    method: 'DELETE',
+  });
+};
+
+export const deleteTemplate = async (templateId) => {
+  return await apiRequest(`/templates/${templateId}`, {
+    method: 'DELETE',
   });
 };

@@ -2,15 +2,15 @@
 
 Uses only portable SQLAlchemy types (String, JSON) so the models work
 with both PostgreSQL (production) and SQLite (test / CI).
-UUIDs are stored as String(36) — the default uuid4 string representation.
+UUIDs are stored as PortableUUID — the default uuid4 string representation.
 """
 
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from backend.db.database import Base
+from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
@@ -20,7 +20,7 @@ def _uuid() -> str:
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=True)  # nullable for pure-OAuth accounts
     auth_provider = Column(String(32), nullable=True, index=True)    # e.g. "google", "github"
@@ -49,8 +49,8 @@ class User(Base):
     synced_events = relationship(
         "ExternalSyncedEvent", back_populates="user", cascade="all, delete-orphan"
     )
-    ai_profile = relationship(
-        "AIUserProfile",
+    user_profile = relationship(
+        "UserProfile",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
@@ -58,14 +58,17 @@ class User(Base):
     ai_recommendations = relationship(
         "AIRecommendation", back_populates="user", cascade="all, delete-orphan"
     )
+    fixed_blocks = relationship(
+        "FixedBlock", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Category(Base):
     __tablename__ = "categories"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -82,15 +85,15 @@ class Category(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     category_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("categories.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -101,8 +104,13 @@ class Task(Base):
     status = Column(String(20), server_default="pending", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
     source_template_name = Column(String(100), nullable=True)
-    due_date = Column(DateTime(timezone=True), nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True) # acts as end_time
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    requires_reason = Column(Integer, server_default="0", nullable=False)  # boolean SQLite compat
+    allows_alternate = Column(Integer, server_default="0", nullable=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -114,3 +122,120 @@ class Task(Base):
     # Relationships
     user = relationship("User", back_populates="tasks")
     category = relationship("Category", back_populates="tasks")
+    checkins = relationship("TaskCheckin", back_populates="task", cascade="all, delete-orphan")
+
+
+class MissedReason(Base):
+    __tablename__ = "missed_reasons"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # null means global default
+        index=True,
+    )
+    name = Column(String(255), nullable=False)
+
+
+class AlternateActivity(Base):
+    __tablename__ = "alternate_activities"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,  # null means global default
+        index=True,
+    )
+    name = Column(String(255), nullable=False)
+
+
+class TaskCheckin(Base):
+    __tablename__ = "task_checkins"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    task_id = Column(
+        PortableUUID,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    status = Column(String(20), nullable=False)  # done, not_done, partial, rescheduled
+    missed_reason_id = Column(
+        PortableUUID,
+        ForeignKey("missed_reasons.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    alternate_activity_id = Column(
+        PortableUUID,
+        ForeignKey("alternate_activities.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    task = relationship("Task", back_populates="checkins")
+    missed_reason = relationship("MissedReason")
+    alternate_activity = relationship("AlternateActivity")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    goals = Column(String(255), nullable=True)
+    focus_times = Column(String(255), nullable=True)
+    typical_disruptions = Column(String(255), nullable=True)
+    structure_preference = Column(String(255), nullable=True)
+    ai_guidance_level = Column(String(255), nullable=True)
+    onboarding_completed = Column(Integer, server_default="0", nullable=False) # boolean
+
+    active_planner_id = Column(
+        PortableUUID,
+        ForeignKey("planner_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_login_date = Column(String(10), nullable=True) # YYYY-MM-DD
+
+    # AI engine fields (merged)
+    personality_type = Column(String(50), nullable=True)
+    productivity_velocity = Column(Float, server_default="1.0", nullable=False)
+    ai_inferred_traits = Column(JSON, nullable=True)
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="user_profile")
+
+
+class FixedBlock(Base):
+    __tablename__ = "fixed_blocks"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(255), nullable=False)
+    start_time = Column(String(5), nullable=False)  # "HH:MM"
+    end_time = Column(String(5), nullable=False)    # "HH:MM"
+    days_of_week = Column(JSON, nullable=False)     # e.g., [1, 2, 3, 4, 5]
+
+    # Relationships
+    user = relationship("User", back_populates="fixed_blocks")

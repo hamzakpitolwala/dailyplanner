@@ -8,7 +8,7 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from backend.db.database import Base
+from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
@@ -18,9 +18,9 @@ def _uuid() -> str:
 class PlannerTemplate(Base):
     __tablename__ = "planner_templates"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -45,9 +45,9 @@ class PlannerTemplate(Base):
 class TemplateTask(Base):
     __tablename__ = "template_tasks"
 
-    id = Column(String(36), primary_key=True, default=_uuid, index=True)
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     template_id = Column(
-        String(36),
+        PortableUUID,
         ForeignKey("planner_templates.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -58,6 +58,7 @@ class TemplateTask(Base):
     category_label = Column(String(50), nullable=True)
     relative_day_offset = Column(Integer, server_default="0", nullable=False)
     target_time = Column(String(8), nullable=True)   # stored as "HH:MM:SS" string
+    duration_minutes = Column(Integer, server_default="60", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

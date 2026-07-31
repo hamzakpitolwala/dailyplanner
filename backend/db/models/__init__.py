@@ -4,7 +4,7 @@ Import all models here so SQLAlchemy discovers them for metadata.create_all()
 """
 
 # Core domain models
-from backend.db.models.core import Category, Task, User  # noqa: F401
+from backend.db.models.core import Category, Task, User, UserProfile  # noqa: F401
 
 # Template models
 from backend.db.models.templates import PlannerTemplate, TemplateTask  # noqa: F401
@@ -13,4 +13,4 @@ from backend.db.models.templates import PlannerTemplate, TemplateTask  # noqa: F
 from backend.db.models.integrations import ExternalSyncedEvent, UserOAuthToken  # noqa: F401
 
 # AI engine models
-from backend.db.models.ai_engine import AIRecommendation, AIUserProfile  # noqa: F401
+from backend.db.models.ai_engine import AIRecommendation  # noqa: F401
