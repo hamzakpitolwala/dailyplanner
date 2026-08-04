@@ -58,6 +58,9 @@ class User(Base):
     ai_recommendations = relationship(
         "AIRecommendation", back_populates="user", cascade="all, delete-orphan"
     )
+    ai_profile = relationship(
+        "AIUserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
     fixed_blocks = relationship(
         "FixedBlock", back_populates="user", cascade="all, delete-orphan"
     )
@@ -104,6 +107,7 @@ class Task(Base):
     status = Column(String(20), server_default="pending", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
     source_template_name = Column(String(100), nullable=True)
+    source_template_task_id = Column(String(36), nullable=True)
     start_time = Column(DateTime(timezone=True), nullable=True)
     due_date = Column(DateTime(timezone=True), nullable=True) # acts as end_time
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -123,6 +127,32 @@ class Task(Base):
     user = relationship("User", back_populates="tasks")
     category = relationship("Category", back_populates="tasks")
     checkins = relationship("TaskCheckin", back_populates="task", cascade="all, delete-orphan")
+    subtasks = relationship("ActivitySubtask", back_populates="task", cascade="all, delete-orphan")
+
+class ActivitySubtask(Base):
+    __tablename__ = "activity_subtasks"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    task_id = Column(
+        PortableUUID,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    title = Column(String(255), nullable=False)
+    is_completed = Column(Integer, server_default="0", nullable=False)  # boolean SQLite compat
+    is_template_subtask = Column(Integer, server_default="0", nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    # Relationships
+    task = relationship("Task", back_populates="subtasks")
 
 
 class MissedReason(Base):

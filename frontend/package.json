@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "vitest run"
   },
   "dependencies": {
     "autoprefixer": "^10.5.4",
@@ -20,11 +21,17 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
-    "vite": "^5.4.10"
+    "happy-dom": "^20.11.1",
+    "typescript": "^7.0.2",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.9"
   }
 }

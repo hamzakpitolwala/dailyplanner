@@ -23,6 +23,7 @@ class TemplateTaskBase(BaseModel):
         return v
     duration_minutes: int = Field(default=60)
     checklist: list[dict] = Field(default_factory=list)
+    subtasks: list[dict] = Field(default_factory=list)
 
 
 class TemplateTaskCreate(TemplateTaskBase):
@@ -38,6 +39,7 @@ class TemplateTaskUpdate(BaseModel):
     target_time: str | None = Field(default=None, max_length=8)
     duration_minutes: int | None = None
     checklist: list[dict] | None = None
+    subtasks: list[dict] | None = None
 
 
 class TemplateTaskResponse(TemplateTaskBase):

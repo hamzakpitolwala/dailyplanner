@@ -15,6 +15,24 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+class AIUserProfile(Base):
+    __tablename__ = "ai_user_profiles"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    personality_type = Column(String(50), nullable=True)
+    productivity_velocity = Column(Float, server_default="1.0", nullable=False)
+    ai_inferred_traits = Column(JSON, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", back_populates="ai_profile")
 
 
 class AIRecommendation(Base):

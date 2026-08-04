@@ -3,7 +3,46 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: #fafafa;
+    --card: #ffffff;
+    --border: #e4e4e7;
+    --text: #27272a;
+    
+    --sidebar-bg: #f4f4f5;
+    --sidebar-hover: #e4e4e7;
+    
+    --primary: #f97316;
+    --primary-hover: #ea580c;
+  }
+
+  .dark {
+    --background: #18181b;
+    --card: #27272a;
+    --border: #3f3f46;
+    --text: #f4f4f5;
+    
+    --sidebar-bg: #09090b;
+    --sidebar-hover: #27272a;
+    
+    --primary: #fb923c;
+    --primary-hover: #fdba74;
+  }
+
   body {
     @apply bg-background text-text antialiased;
   }
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 10px;
 }

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { styles } from '../../utils/styles';
-import { fetchTemplates, createTemplate, deleteTemplate, deleteTemplateTask, updateTemplateTask } from '../../api/templateApi';
+import { fetchTemplates, createTemplate, deleteTemplate, deleteTemplateTask, updateTemplateTask, createTemplateTask } from '../../api/templateApi';
 import { userApi } from '../../api/userApi';
-import { TaskForm } from '../planner/TaskForm';
+import { TaskForm } from '../Planner/TaskForm';
 import { emptyTask } from '../../utils/constants';
 import { Edit2, Trash2 } from 'lucide-react';
 
@@ -103,6 +103,10 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
       description: task.description || '',
       start_time: formatTime(task.target_time),
       end_time: endTime,
+      priority: task.priority || 1,
+      requires_reason: task.requires_reason || false,
+      allows_alternate: task.allows_alternate || false,
+      subtasks: task.subtasks || []
     });
     setActiveTemplateId(templateId);
     setEditingTaskId(task.id);
@@ -126,18 +130,16 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
         title: taskForm.title,
         description: taskForm.description,
         target_time: taskForm.start_time ? `${taskForm.start_time}:00` : null,
-        duration_minutes: duration
+        duration_minutes: duration,
+        priority: taskForm.priority || 1,
+        subtasks: taskForm.subtasks || []
       };
 
       if (editingTaskId) {
         await updateTemplateTask(activeTemplateId, editingTaskId, payload);
         setMessage('Task updated.');
       } else {
-        await fetch(`/templates/${activeTemplateId}/tasks`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+        await createTemplateTask(activeTemplateId, payload);
         setMessage('Task added to template.');
       }
       
@@ -181,24 +183,35 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
             <ul style={{ paddingLeft: '1.2rem' }}>
               {tmpl.template_tasks && tmpl.template_tasks.length > 0 ? (
                 tmpl.template_tasks.map(t => (
-                  <li key={t.id} style={{ marginBottom: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>{t.title} {t.target_time ? `(${t.target_time.substring(0, 5)})` : ''}</span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '0.2rem' }} 
-                        onClick={() => startEditTask(tmpl.id, t)}
-                        title="Edit task"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '0.2rem' }} 
-                        onClick={() => handleDeleteTaskFromTemplate(tmpl.id, t.id)}
-                        title="Delete task"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  <li key={t.id} style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{t.title} {t.target_time ? `(${t.target_time.substring(0, 5)})` : ''}</span>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button 
+                          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '0.2rem' }} 
+                          onClick={() => startEditTask(tmpl.id, t)}
+                          title="Edit task"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '0.2rem' }} 
+                          onClick={() => handleDeleteTaskFromTemplate(tmpl.id, t.id)}
+                          title="Delete task"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
+                    {t.subtasks && t.subtasks.length > 0 && (
+                      <ul style={{ paddingLeft: '1.5rem', marginTop: '0.25rem', fontSize: '0.875rem', color: '#4b5563' }}>
+                        {t.subtasks.map((sub, idx) => (
+                          <li key={idx} style={{ listStyleType: 'disc' }}>
+                            {sub.title}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))
               ) : (
@@ -223,6 +236,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
                 editingTaskId={editingTaskId}
                 onSubmit={submitTask}
                 onCancel={() => setShowTaskForm(false)}
+                isTemplateMode={true}
               />
           </div>
         </div>

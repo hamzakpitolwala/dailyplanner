@@ -60,6 +60,7 @@ class TemplateTask(Base):
     target_time = Column(String(8), nullable=True)   # stored as "HH:MM:SS" string
     duration_minutes = Column(Integer, server_default="60", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
+    subtasks = Column(JSON, server_default="[]", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships

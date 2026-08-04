@@ -40,3 +40,23 @@ export const postTaskCheckin = async (taskId, checkinData) => {
   });
 };
 
+
+export const createSubtask = async (taskId, title) => {
+  return await apiRequest(`${TASKS_BASE}/${taskId}/subtasks`, {
+    method: 'POST',
+    body: JSON.stringify({ title, is_completed: false }),
+  });
+};
+
+export const updateSubtask = async (taskId, subtaskId, updateData) => {
+  return await apiRequest(`${TASKS_BASE}/${taskId}/subtasks/${subtaskId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updateData),
+  });
+};
+
+export const deleteSubtask = async (taskId, subtaskId) => {
+  return await apiRequest(`${TASKS_BASE}/${taskId}/subtasks/${subtaskId}`, {
+    method: 'DELETE',
+  });
+};

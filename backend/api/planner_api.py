@@ -167,6 +167,9 @@ from backend.schemas.core_schema import (
     AlternateActivityResponse,
     TaskCheckinCreate,
     TaskCheckinResponse,
+    SubtaskCreate,
+    SubtaskUpdate,
+    SubtaskResponse,
 )
 from backend.services.task_service import TaskService
 
@@ -284,6 +287,58 @@ async def delete_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     _service.delete_task(db, task)
 
+# ------------------------------------------------------------------
+# Subtasks
+# ------------------------------------------------------------------
+
+@router.post("/{task_id}/subtasks", response_model=SubtaskResponse, status_code=status.HTTP_201_CREATED)
+async def create_subtask(
+    task_id: UUID,
+    payload: SubtaskCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    task = _service.get_task(db, user.id, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    return _service.create_subtask(db, task_id, payload.model_dump())
+
+
+@router.patch("/{task_id}/subtasks/{subtask_id}", response_model=SubtaskResponse)
+async def update_subtask(
+    task_id: UUID,
+    subtask_id: UUID,
+    payload: SubtaskUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    task = _service.get_task(db, user.id, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    
+    subtask = _service.get_subtask(db, task_id, subtask_id)
+    if subtask is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtask not found")
+        
+    return _service.update_subtask(db, subtask, payload.model_dump(exclude_unset=True))
+
+
+@router.delete("/{task_id}/subtasks/{subtask_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_subtask(
+    task_id: UUID,
+    subtask_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    task = _service.get_task(db, user.id, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        
+    subtask = _service.get_subtask(db, task_id, subtask_id)
+    if subtask is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtask not found")
+        
+    _service.delete_subtask(db, subtask)
 
 # ------------------------------------------------------------------
 # Categories

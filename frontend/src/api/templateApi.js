@@ -17,10 +17,10 @@ export const applyTemplate = async (templateId, targetDate) => {
   });
 };
 
-export const createTemplateTask = async (templateId, title = 'New Task', category_label = 'General') => {
+export const createTemplateTask = async (templateId, payload) => {
   return await apiRequest(`/templates/${templateId}/tasks`, {
     method: 'POST',
-    body: JSON.stringify({ title, category_label }),
+    body: JSON.stringify(payload),
   });
 };
 

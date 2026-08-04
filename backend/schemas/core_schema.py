@@ -30,6 +30,30 @@ class CategoryResponse(CategoryBase):
 
 
 # ---------------------------------------------------------------------------
+# Subtask Schemas
+# ---------------------------------------------------------------------------
+
+class SubtaskBase(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+    is_completed: bool = False
+
+class SubtaskCreate(SubtaskBase):
+    pass
+
+class SubtaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    is_completed: bool | None = None
+
+class SubtaskResponse(SubtaskBase):
+    id: UUID
+    task_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
 # Task Schemas
 # ---------------------------------------------------------------------------
 
@@ -40,6 +64,7 @@ class TaskBase(BaseModel):
     status: str = Field(default="pending", max_length=20)
     checklist: list[dict] = Field(default_factory=list)
     source_template_name: str | None = Field(default=None, max_length=100)
+    source_template_task_id: str | None = Field(default=None, max_length=36)
     start_time: datetime | None = None
     due_date: datetime | None = None
     requires_reason: bool = False
@@ -48,6 +73,7 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     category_id: UUID | None = None
+    subtasks: list[SubtaskCreate] = Field(default_factory=list)
 
 
 class TaskUpdate(BaseModel):
@@ -58,6 +84,7 @@ class TaskUpdate(BaseModel):
     status: str | None = Field(default=None, max_length=20)
     checklist: list[dict] | None = None
     source_template_name: str | None = Field(default=None, max_length=100)
+    source_template_task_id: str | None = Field(default=None, max_length=36)
     start_time: datetime | None = None
     due_date: datetime | None = None
     completed_at: datetime | None = None
@@ -73,8 +100,10 @@ class TaskResponse(TaskBase):
     created_at: datetime
     updated_at: datetime
     checkins: list["TaskCheckinResponse"] = Field(default_factory=list)
+    subtasks: list["SubtaskResponse"] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
 
 
 # ---------------------------------------------------------------------------
@@ -187,3 +216,5 @@ class FixedBlockResponse(FixedBlockBase):
     user_id: UUID
 
     model_config = {"from_attributes": True}
+
+TaskResponse.model_rebuild()

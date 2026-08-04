@@ -72,20 +72,63 @@ class TemplateService:
     def instantiate_template_to_tasks(
         self, db: Session, user_id: UUID, template_id: UUID, start_date: datetime
     ) -> list[Task]:
-        """Instantiates all tasks in a template into concrete user tasks relative to start_date."""
+        """Instantiates all tasks in a template into concrete user tasks relative to start_date.
+        Acts as a sync: updates existing pending tasks, creates missing ones, and removes pending tasks that were deleted from the template."""
         template = self.get_template(db, user_id, template_id)
         if not template:
             raise ValueError("Template not found")
 
-        created_tasks = []
+        # Clean up existing pending tasks from OTHER templates for this day
+        start_of_day = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        other_template_tasks = db.query(Task).filter(
+            Task.user_id == str(user_id),
+            Task.source_template_name != None,
+            Task.source_template_name != template.name,
+            Task.due_date >= start_of_day,
+            Task.due_date <= end_of_day,
+            Task.status == "pending"
+        ).all()
+        
+        for ot in other_template_tasks:
+            db.delete(ot)
+
+        # Get existing tasks for this date from this template, or manual tasks
+        existing_tasks = db.query(Task).filter(
+            Task.user_id == str(user_id),
+            (Task.source_template_name == template.name) | (Task.source_template_name == None),
+            Task.due_date >= start_of_day,
+            Task.due_date <= end_of_day
+        ).all()
+        
+        existing_by_tmpl_id = {}
+        existing_by_title = {}
+        for t in existing_tasks:
+            if t.source_template_task_id:
+                existing_by_tmpl_id.setdefault(t.source_template_task_id, []).append(t)
+            else:
+                existing_by_title.setdefault(t.title, []).append(t)
+            
+        synced_tasks = []
+
         for tmpl_task in template.template_tasks:
             calculated_start = start_date + timedelta(days=tmpl_task.relative_day_offset)
             calculated_due = calculated_start
             
             if tmpl_task.target_time:
                 try:
-                    # target_time is stored as a string "HH:MM:SS"
-                    hour, minute, second = map(int, tmpl_task.target_time.split(":"))
+                    import datetime
+                    if isinstance(tmpl_task.target_time, datetime.time):
+                        hour = tmpl_task.target_time.hour
+                        minute = tmpl_task.target_time.minute
+                        second = tmpl_task.target_time.second
+                    else:
+                        # target_time might be "HH:MM" or "HH:MM:SS"
+                        parts = list(map(int, str(tmpl_task.target_time).split(":")))
+                        hour, minute = parts[0], parts[1]
+                        second = parts[2] if len(parts) > 2 else 0
+                        
                     calculated_start = calculated_start.replace(
                         hour=hour,
                         minute=minute,
@@ -95,23 +138,92 @@ class TemplateService:
                 except Exception:
                     pass
 
-            task = Task(
-                id=str(uuid.uuid4()),
-                user_id=str(user_id),
-                title=tmpl_task.title,
-                description=tmpl_task.description,
-                priority=tmpl_task.priority,
-                checklist=tmpl_task.checklist,
-                source_template_name=template.name,
-                start_time=calculated_start,
-                due_date=calculated_due,
-            )
-            db.add(task)
-            db.flush()
-            created_tasks.append(task)
+            task = None
+            if str(tmpl_task.id) in existing_by_tmpl_id and existing_by_tmpl_id[str(tmpl_task.id)]:
+                task = existing_by_tmpl_id[str(tmpl_task.id)].pop(0)
+            elif tmpl_task.title in existing_by_title and existing_by_title[tmpl_task.title]:
+                # Fallback matching for old tasks
+                task = existing_by_title[tmpl_task.title].pop(0)
+                # Assign the missing id to fix the link
+                task.source_template_task_id = str(tmpl_task.id)
+
+            if task:
+                if task.status == "pending":
+                    # Overwrite core properties based on the template
+                    task.title = tmpl_task.title
+                    task.description = tmpl_task.description
+                    task.priority = tmpl_task.priority
+                    task.checklist = tmpl_task.checklist
+                    
+                    if tmpl_task.target_time is not None:
+                        task.start_time = calculated_start
+                        task.due_date = calculated_due
+                    
+                    # Sync subtasks non-destructively
+                    from backend.db.models.core import ActivitySubtask
+                    concrete_subs = {s.title: s for s in task.subtasks}
+                    tmpl_sub_titles = set()
+                    
+                    for sub in tmpl_task.subtasks:
+                        title = sub.get("title", "Unnamed")
+                        tmpl_sub_titles.add(title)
+                        if title not in concrete_subs:
+                            # Create missing template subtask
+                            new_sub = ActivitySubtask(
+                                task_id=str(task.id),
+                                title=title,
+                                is_completed=1 if sub.get("is_completed") else 0,
+                                is_template_subtask=1
+                            )
+                            db.add(new_sub)
+                    
+                    # Delete subtasks that were removed from the template,
+                    # EXCEPT if they were manually added on the Planner Page (is_template_subtask == 0)
+                    for s_title, subtask in concrete_subs.items():
+                        if s_title not in tmpl_sub_titles and subtask.is_template_subtask == 1:
+                            db.delete(subtask)
+                        
+                synced_tasks.append(task)
+            else:
+                task = Task(
+                    id=str(uuid.uuid4()),
+                    user_id=str(user_id),
+                    title=tmpl_task.title,
+                    description=tmpl_task.description,
+                    priority=tmpl_task.priority,
+                    checklist=tmpl_task.checklist,
+                    source_template_name=template.name,
+                    source_template_task_id=str(tmpl_task.id),
+                    start_time=calculated_start,
+                    due_date=calculated_due,
+                )
+                db.add(task)
+                db.flush()
+                
+                from backend.db.models.core import ActivitySubtask
+                for sub in tmpl_task.subtasks:
+                    subtask = ActivitySubtask(
+                        task_id=str(task.id),
+                        title=sub.get("title", "Unnamed"),
+                        is_completed=1 if sub.get("is_completed") else 0,
+                        is_template_subtask=1
+                    )
+                    db.add(subtask)
+
+                synced_tasks.append(task)
+
+        # Remove tasks that are no longer in the template (only if pending)
+        for task_list in existing_by_tmpl_id.values():
+            for task in task_list:
+                if task.status == "pending" and task.source_template_name == template.name:
+                    db.delete(task)
+        for task_list in existing_by_title.values():
+            for task in task_list:
+                if task.status == "pending" and task.source_template_name == template.name:
+                    db.delete(task)
 
         db.commit()
-        return created_tasks
+        return synced_tasks
 
     # ------------------------------------------------------------------
     # Template Tasks

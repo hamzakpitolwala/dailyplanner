@@ -19,6 +19,7 @@ export const emptyTask = {
   end_time: '',
   requires_reason: false,
   allows_alternate: false,
+  subtasks: [],
 };
 
 export const todayIso = () => new Date().toISOString().slice(0, 10);

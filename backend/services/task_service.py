@@ -50,13 +50,14 @@ class TaskService:
     # ------------------------------------------------------------------
 
     def list_tasks(self, db: Session, user_id: UUID) -> list[Task]:
-        from backend.db.models.core import TaskCheckin
+        from backend.db.models.core import TaskCheckin, ActivitySubtask
         return (
             db.query(Task)
             .options(
                 selectinload(Task.category), 
                 selectinload(Task.checkins).selectinload(TaskCheckin.missed_reason),
-                selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity)
+                selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity),
+                selectinload(Task.subtasks)
             )
             .filter(Task.user_id == str(user_id))
             .order_by(Task.due_date.asc().nulls_last())
@@ -64,15 +65,19 @@ class TaskService:
         )
 
     def get_task(self, db: Session, user_id: UUID, task_id: UUID) -> Task | None:
+        from backend.db.models.core import ActivitySubtask
         return (
             db.query(Task)
-            .options(selectinload(Task.category))
+            .options(
+                selectinload(Task.category),
+                selectinload(Task.subtasks)
+            )
             .filter(Task.id == str(task_id), Task.user_id == str(user_id))
             .first()
         )
 
     def create_task(self, db: Session, user_id: UUID, data: TaskCreate) -> Task:
-        payload = data.model_dump()
+        payload = data.model_dump(exclude={"subtasks"})
         if "category_id" in payload and payload["category_id"]:
             payload["category_id"] = str(payload["category_id"])
         
@@ -84,12 +89,22 @@ class TaskService:
 
         task = Task(user_id=str(user_id), **payload)
         db.add(task)
+        db.flush()
+
+        from backend.db.models.core import ActivitySubtask
+        for sub_data in data.subtasks:
+            sub_payload = sub_data.model_dump()
+            if "is_completed" in sub_payload and isinstance(sub_payload["is_completed"], bool):
+                sub_payload["is_completed"] = 1 if sub_payload["is_completed"] else 0
+            subtask = ActivitySubtask(task_id=str(task.id), **sub_payload)
+            db.add(subtask)
+
         db.commit()
         db.refresh(task)
         return task
 
     def update_task(self, db: Session, task: Task, data: TaskUpdate) -> Task:
-        payload = data.model_dump(exclude_unset=True)
+        payload = data.model_dump(exclude_unset=True, exclude={"subtasks"})
 
         # Auto-set completed_at timestamp when status transitions to completed
         if payload.get("status") == "completed" and task.status != "completed": #type: ignore
@@ -162,3 +177,47 @@ class TaskService:
         db.commit()
         db.refresh(checkin)
         return checkin
+
+    # ------------------------------------------------------------------
+    # Subtasks
+    # ------------------------------------------------------------------
+
+    def get_subtask(self, db: Session, task_id: UUID, subtask_id: UUID) -> object | None:
+        from backend.db.models.core import ActivitySubtask
+        return (
+            db.query(ActivitySubtask)
+            .filter(ActivitySubtask.id == str(subtask_id), ActivitySubtask.task_id == str(task_id))
+            .first()
+        )
+
+    def create_subtask(self, db: Session, task_id: UUID, data: dict) -> object:
+        from backend.db.models.core import ActivitySubtask
+        
+        # SQLite compat: convert bools to ints
+        payload = data.copy()
+        if "is_completed" in payload and isinstance(payload["is_completed"], bool):
+            payload["is_completed"] = 1 if payload["is_completed"] else 0
+
+        subtask = ActivitySubtask(task_id=str(task_id), **payload)
+        db.add(subtask)
+        db.commit()
+        db.refresh(subtask)
+        return subtask
+
+    def update_subtask(self, db: Session, subtask: object, data: dict) -> object:
+        payload = data.copy()
+        
+        # SQLite compat: convert bools to ints
+        if "is_completed" in payload and isinstance(payload["is_completed"], bool):
+            payload["is_completed"] = 1 if payload["is_completed"] else 0
+
+        for field, value in payload.items():
+            setattr(subtask, field, value)
+
+        db.commit()
+        db.refresh(subtask)
+        return subtask
+
+    def delete_subtask(self, db: Session, subtask: object) -> None:
+        db.delete(subtask)
+        db.commit()
