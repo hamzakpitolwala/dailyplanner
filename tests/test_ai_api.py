@@ -11,14 +11,17 @@ from backend.core.oauth2 import get_current_user
 # Use TestClient
 client = TestClient(app)
 
-# Override dependencies
-def override_get_current_user():
-    return User(id=str(uuid.uuid4()), email="test@example.com")
-
-app.dependency_overrides[get_current_user] = override_get_current_user
-app.dependency_overrides[get_user_service] = lambda: MagicMock()
-app.dependency_overrides[get_task_service] = lambda: MagicMock()
-app.dependency_overrides[get_fixed_block_repository] = lambda: MagicMock()
+@pytest.fixture(autouse=True)
+def override_deps():
+    app.dependency_overrides[get_current_user] = lambda: User(id=str(uuid.uuid4()), email="test@example.com")
+    app.dependency_overrides[get_user_service] = lambda: MagicMock()
+    app.dependency_overrides[get_task_service] = lambda: MagicMock()
+    app.dependency_overrides[get_fixed_block_repository] = lambda: MagicMock()
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_user_service, None)
+    app.dependency_overrides.pop(get_task_service, None)
+    app.dependency_overrides.pop(get_fixed_block_repository, None)
 
 
 @pytest.mark.asyncio
