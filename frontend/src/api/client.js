@@ -23,7 +23,13 @@ export const apiRequest = async (path, options = {}) => {
   }
 
   if (!response.ok) {
-    throw new Error(data?.detail || 'Request failed');
+    let errorMsg = 'Request failed';
+    if (data?.error?.message) {
+      errorMsg = data.error.message;
+    } else if (data?.detail) {
+      errorMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+    }
+    throw new Error(errorMsg);
   }
   return data;
 };

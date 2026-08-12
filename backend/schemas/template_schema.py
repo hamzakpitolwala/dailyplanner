@@ -13,14 +13,7 @@ class TemplateTaskBase(BaseModel):
     priority: int = Field(default=1, ge=1)
     category_label: str | None = Field(default=None, max_length=50)
     relative_day_offset: int = 0
-    target_time: str | None = Field(default=None, max_length=8)
-
-    @field_validator('target_time', mode='before')
-    @classmethod
-    def validate_target_time(cls, v):
-        if isinstance(v, time):
-            return v.strftime("%H:%M:%S")
-        return v
+    target_time: time | None = Field(default=None)
     duration_minutes: int = Field(default=60)
     checklist: list[dict] = Field(default_factory=list)
     subtasks: list[dict] = Field(default_factory=list)
@@ -36,7 +29,7 @@ class TemplateTaskUpdate(BaseModel):
     priority: int | None = Field(default=None, ge=1)
     category_label: str | None = Field(default=None, max_length=50)
     relative_day_offset: int | None = None
-    target_time: str | None = Field(default=None, max_length=8)
+    target_time: time | None = Field(default=None)
     duration_minutes: int | None = None
     checklist: list[dict] | None = None
     subtasks: list[dict] | None = None

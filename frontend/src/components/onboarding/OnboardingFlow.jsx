@@ -71,25 +71,25 @@ export const OnboardingFlow = ({ onComplete }) => {
       alignItems: 'center',
       justifyContent: 'center',
       height: '100vh',
-      backgroundColor: '#f9fafb'
+      backgroundColor: 'var(--background)'
     }}>
       <div style={{
-        ...styles.card,
+        ...styles.panel,
         width: '100%',
         maxWidth: 500,
         textAlign: 'center',
         padding: '2rem'
       }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: '#111827' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text)' }}>
           Welcome to DailyPlanner!
         </h2>
-        <p style={{ color: '#4b5563', marginBottom: '2rem' }}>
+        <p style={{ color: 'var(--text)', opacity: 0.8, marginBottom: '2rem' }}>
           Let's set up your profile ({step + 1} of {questions.length})
         </p>
 
         <div style={{ marginBottom: '2rem', textAlign: 'left' }}>
           <label style={styles.label}>{currentQuestion.title}</label>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text)', opacity: 0.7, marginBottom: '0.5rem' }}>
             {currentQuestion.description}
           </p>
           <input
@@ -103,14 +103,14 @@ export const OnboardingFlow = ({ onComplete }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <button
-            style={{ ...styles.button, backgroundColor: '#f3f4f6', color: '#374151' }}
+            style={styles.button}
             onClick={handleBack}
             disabled={step === 0 || saving}
           >
             Back
           </button>
           <button
-            style={styles.button}
+            style={styles.primaryButton}
             onClick={handleNext}
             disabled={saving}
           >

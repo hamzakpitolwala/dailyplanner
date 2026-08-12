@@ -10,7 +10,7 @@ export function parseTimeToMinutes(timeString: string | null | undefined): numbe
   // Handle formats like "YYYY-MM-DDTHH:MM:SS" or "HH:MM:SS" or "HH:MM"
   let timePart = timeString;
   if (timeString.includes('T')) {
-    timePart = timeString.split('T')[1];
+    timePart = new Date(timeString).toTimeString().substring(0, 5);
   }
   const [h, m] = timePart.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);

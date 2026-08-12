@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, Field
+from typing import List, Literal, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -26,14 +27,28 @@ class AIUserProfileResponse(AIUserProfileBase):
 # ---------------------------------------------------------------------------
 
 class AIRecommendationBase(BaseModel):
-    recommendation_text: str
-    rationale: str | None = None
-    suggested_changes: dict
+    kind: str = Field(max_length=50) # e.g. move_activity_time
+    scope: str = Field(max_length=50) # template | daily_instance | activity | global
+    
+    target_template_id: UUID | None = None
+    target_daily_planner_id: UUID | None = None
+    target_activity_id: UUID | None = None
+    
+    payload: dict = Field(default_factory=dict)
+    title: str = Field(max_length=255)
+    explanation: str | None = None
     status: str = Field(default="pending", max_length=20)
+    source_period_start: str | None = None
+    source_period_end: str | None = None
+
+
+class AIRecommendationCreate(AIRecommendationBase):
+    pass
 
 
 class AIRecommendationUpdate(BaseModel):
-    status: str = Field(max_length=20)  # e.g. "accepted", "dismissed"
+    decision: Literal["accepted", "rejected", "ignored"]
+    payload: dict | None = None  # user can optionally tweak the payload before accepting
 
 
 class AIRecommendationResponse(AIRecommendationBase):
@@ -42,3 +57,90 @@ class AIRecommendationResponse(AIRecommendationBase):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class RecommendationOutcomeBase(BaseModel):
+    recommendation_id: UUID
+    decision: str = Field(max_length=20)
+    applied_change_ref: dict | None = None
+
+
+class RecommendationOutcomeResponse(RecommendationOutcomeBase):
+    id: UUID
+    user_id: UUID
+    decided_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Starter Planner Schemas
+# ---------------------------------------------------------------------------
+
+class StarterActivity(BaseModel):
+    title: str
+    category: Optional[str] = None
+    start_time: str  # "HH:MM" 24h
+    end_time: str    # "HH:MM"
+    priority: Literal["low", "medium", "high"] = "medium"
+    type: Literal["focus", "admin", "break", "health", "social"] = "focus"
+    notes: Optional[str] = None
+
+
+class StarterPlanner(BaseModel):
+    template_name: str
+    description: Optional[str] = None
+    timezone: str
+    day_type: Literal["weekday", "weekend", "generic"] = "generic"
+    activities: List[StarterActivity]
+
+
+# ---------------------------------------------------------------------------
+# Daily/Weekly Summary Schemas
+# ---------------------------------------------------------------------------
+
+class InsightItem(BaseModel):
+    title: str
+    detail: str
+
+
+class SuggestedChange(BaseModel):
+    title: str
+    description: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class PlannerSummary(BaseModel):
+    period_type: Literal["day", "week"]
+    period_start: str  # ISO date
+    period_end: str    # ISO date
+    summary_text: str
+    wins: List[InsightItem] = Field(default_factory=list)
+    issues: List[InsightItem] = Field(default_factory=list)
+    suggestions: List[SuggestedChange] = Field(default_factory=list)
+
+
+class PlannerSummaryResponse(PlannerSummary):
+    id: Optional[UUID] = None # None for transient daily summaries
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Conversational AI Schemas
+# ---------------------------------------------------------------------------
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    structuredType: Optional[str] = None
+    structuredData: Optional[dict] = None

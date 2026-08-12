@@ -1,10 +1,11 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from backend.db.models.core import Task
+from backend.db.models.core import Task, ActivitySubtask
 from backend.db.models.templates import PlannerTemplate, TemplateTask
 from backend.schemas.template_schema import (
     PlannerTemplateCreate,
@@ -12,176 +13,196 @@ from backend.schemas.template_schema import (
     TemplateTaskCreate,
     TemplateTaskUpdate,
 )
+from backend.db.repositories.template import TemplateRepository, TemplateTaskRepository
+from backend.db.repositories.task import TaskRepository
 
 
 class TemplateService:
     """Service layer for planner templates and template tasks."""
 
+    def __init__(
+        self,
+        template_repo: TemplateRepository,
+        template_task_repo: TemplateTaskRepository,
+        task_repo: TaskRepository,
+    ):
+        self.template_repo = template_repo
+        self.template_task_repo = template_task_repo
+        self.task_repo = task_repo
+
     # ------------------------------------------------------------------
     # Planner Templates
     # ------------------------------------------------------------------
 
-    def list_templates(self, db: Session, user_id: UUID) -> list[PlannerTemplate]:
-        return (
-            db.query(PlannerTemplate)
-            .options(selectinload(PlannerTemplate.template_tasks))
-            .filter(PlannerTemplate.user_id == user_id)
-            .order_by(PlannerTemplate.created_at.desc())
-            .all()
-        )
+    async def list_templates(self, user_id: UUID) -> list[PlannerTemplate]:
+        return await self.template_repo.list_templates(user_id)
 
-    def get_template(self, db: Session, user_id: UUID, template_id: UUID) -> PlannerTemplate | None:
-        return (
-            db.query(PlannerTemplate)
-            .options(selectinload(PlannerTemplate.template_tasks))
-            .filter(PlannerTemplate.id == template_id, PlannerTemplate.user_id == user_id)
-            .first()
-        )
+    async def get_template(self, user_id: UUID, template_id: UUID) -> PlannerTemplate | None:
+        return await self.template_repo.get_template(user_id, template_id)
 
-    def create_template(
-        self, db: Session, user_id: UUID, data: PlannerTemplateCreate
+    async def create_template(
+        self, user_id: UUID, data: PlannerTemplateCreate
     ) -> PlannerTemplate:
         payload = data.model_dump(exclude={"template_tasks"})
         template = PlannerTemplate(user_id=str(user_id), **payload)
-        db.add(template)
-        db.flush()
+        
+        self.template_repo.db.add(template)
+        await self.template_repo.db.flush()
 
-        # Add initial nested template tasks if provided
         for task_data in data.template_tasks:
             tmpl_task = TemplateTask(template_id=str(template.id), **task_data.model_dump())
-            db.add(tmpl_task)
+            self.template_repo.db.add(tmpl_task)
 
-        db.commit()
-        db.refresh(template)
-        return template
+        await self.template_repo.commit()
+        return await self.template_repo.get_template(user_id, template.id)
 
-    def update_template(
-        self, db: Session, template: PlannerTemplate, data: PlannerTemplateUpdate
+    async def update_template(
+        self, template: PlannerTemplate, data: PlannerTemplateUpdate
     ) -> PlannerTemplate:
-        for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(template, field, value)
+        return await self.template_repo.update(template, **data.model_dump(exclude_unset=True))
 
-        db.commit()
-        db.refresh(template)
-        return template
+    async def delete_template(self, template: PlannerTemplate) -> None:
+        await self.template_repo.delete(template)
 
-    def delete_template(self, db: Session, template: PlannerTemplate) -> None:
-        db.delete(template)
-        db.commit()
+    async def _clean_stale_tasks(
+        self, user_id: UUID, template_id: UUID, start_of_day: datetime, end_of_day: datetime
+    ) -> bool:
+        stale_tasks = await self.template_repo.get_stale_template_tasks_to_clean(
+            user_id, template_id, start_of_day, end_of_day
+        )
+        deleted_any = False
+        for t in stale_tasks:
+            await self.task_repo.db.delete(t)
+            deleted_any = True
+        return deleted_any
 
-    def instantiate_template_to_tasks(
-        self, db: Session, user_id: UUID, template_id: UUID, start_date: datetime
+    def _parse_target_time(self, target_time: object) -> tuple[int, int, int]:
+        from datetime import time as dt_time
+        if isinstance(target_time, dt_time):
+            return target_time.hour, target_time.minute, target_time.second
+        parts = str(target_time).split(":")
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        second = int(parts[2]) if len(parts) > 2 else 0
+        return hour, minute, second
+
+    async def _sync_subtasks(self, task: Task, tmpl_task: TemplateTask) -> bool:
+        concrete_subs = {s.title: s for s in task.subtasks}
+        tmpl_sub_titles = set()
+        
+        changes_made = False
+        for sub in tmpl_task.subtasks:
+            title = sub.get("title", "Unnamed")
+            tmpl_sub_titles.add(title)
+            if title not in concrete_subs:
+                new_sub = ActivitySubtask(
+                    task_id=str(task.id),
+                    title=title,
+                    is_completed=1 if sub.get("is_completed") else 0,
+                    is_template_subtask=1
+                )
+                self.template_repo.db.add(new_sub)
+                changes_made = True
+        
+        for s_title, subtask in concrete_subs.items():
+            if s_title not in tmpl_sub_titles and subtask.is_template_subtask == 1:
+                await self.template_repo.db.delete(subtask)
+                changes_made = True
+                
+        return changes_made
+
+    async def instantiate_template_to_tasks(
+        self, user_id: UUID, template_id: UUID, start_date: datetime, tz_offset: int = 0
     ) -> list[Task]:
-        """Instantiates all tasks in a template into concrete user tasks relative to start_date.
-        Acts as a sync: updates existing pending tasks, creates missing ones, and removes pending tasks that were deleted from the template."""
-        template = self.get_template(db, user_id, template_id)
+        """Instantiates all tasks in a template into concrete user tasks relative to start_date."""
+        tz = timezone(timedelta(minutes=-tz_offset))
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=tz)
+        else:
+            start_date = start_date.astimezone(tz)
+            
+        template = await self.get_template(user_id, template_id)
         if not template:
             raise ValueError("Template not found")
 
-        # Clean up existing pending tasks from OTHER templates for this day
         start_of_day = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
-        
-        other_template_tasks = db.query(Task).filter(
-            Task.user_id == str(user_id),
-            Task.source_template_name != None,
-            Task.source_template_name != template.name,
-            Task.due_date >= start_of_day,
-            Task.due_date <= end_of_day,
-            Task.status == "pending"
-        ).all()
-        
-        for ot in other_template_tasks:
-            db.delete(ot)
 
-        # Get existing tasks for this date from this template, or manual tasks
-        existing_tasks = db.query(Task).filter(
+        stale_cleaned = await self._clean_stale_tasks(user_id, template_id, start_of_day, end_of_day)
+        
+        result = await self.template_repo.db.execute(select(Task).options(selectinload(Task.subtasks)).filter(
             Task.user_id == str(user_id),
-            (Task.source_template_name == template.name) | (Task.source_template_name == None),
+            (Task.source_template_id == str(template.id)) | (Task.source_template_id.is_(None)),
             Task.due_date >= start_of_day,
             Task.due_date <= end_of_day
-        ).all()
+        ))
+        existing_tasks = result.scalars().all()
         
-        existing_by_tmpl_id = {}
-        existing_by_title = {}
+        existing_by_tmpl_id: dict[str, list] = {}
+        existing_by_title: dict[str, list] = {}
+        manual_tasks = []
         for t in existing_tasks:
             if t.source_template_task_id:
-                existing_by_tmpl_id.setdefault(t.source_template_task_id, []).append(t)
+                existing_by_tmpl_id.setdefault(str(t.source_template_task_id), []).append(t)
+            elif t.source_template_id:
+                pass
             else:
-                existing_by_title.setdefault(t.title, []).append(t)
+                existing_by_title.setdefault(str(t.title), []).append(t)
+                manual_tasks.append(t)
             
         synced_tasks = []
+        changes_made = stale_cleaned
 
         for tmpl_task in template.template_tasks:
-            calculated_start = start_date + timedelta(days=tmpl_task.relative_day_offset)
-            calculated_due = calculated_start
+            target_day_start = start_of_day + timedelta(days=tmpl_task.relative_day_offset)
+            target_day_end = end_of_day + timedelta(days=tmpl_task.relative_day_offset)
             
             if tmpl_task.target_time:
-                try:
-                    import datetime
-                    if isinstance(tmpl_task.target_time, datetime.time):
-                        hour = tmpl_task.target_time.hour
-                        minute = tmpl_task.target_time.minute
-                        second = tmpl_task.target_time.second
-                    else:
-                        # target_time might be "HH:MM" or "HH:MM:SS"
-                        parts = list(map(int, str(tmpl_task.target_time).split(":")))
-                        hour, minute = parts[0], parts[1]
-                        second = parts[2] if len(parts) > 2 else 0
-                        
-                    calculated_start = calculated_start.replace(
-                        hour=hour,
-                        minute=minute,
-                        second=second,
-                    )
-                    calculated_due = calculated_start + timedelta(minutes=tmpl_task.duration_minutes)
-                except Exception:
-                    pass
-
+                hour, minute, second = self._parse_target_time(tmpl_task.target_time)
+                calculated_start = target_day_start.replace(hour=hour, minute=minute, second=second)
+                calculated_due = calculated_start + timedelta(minutes=tmpl_task.duration_minutes)
+            else:
+                calculated_start = None
+                calculated_due = target_day_end
+            
+            # Check for conflict with manual tasks
+            conflict = False
+            if calculated_start and calculated_due:
+                for mt in manual_tasks:
+                    if mt.start_time and mt.due_date:
+                        if calculated_start < mt.due_date and calculated_due > mt.start_time:
+                            conflict = True
+                            break
+            if conflict:
+                continue
+            
             task = None
             if str(tmpl_task.id) in existing_by_tmpl_id and existing_by_tmpl_id[str(tmpl_task.id)]:
                 task = existing_by_tmpl_id[str(tmpl_task.id)].pop(0)
             elif tmpl_task.title in existing_by_title and existing_by_title[tmpl_task.title]:
-                # Fallback matching for old tasks
                 task = existing_by_title[tmpl_task.title].pop(0)
-                # Assign the missing id to fix the link
                 task.source_template_task_id = str(tmpl_task.id)
+                task.source_template_id = str(template.id)
 
             if task:
                 if task.status == "pending":
-                    # Overwrite core properties based on the template
                     task.title = tmpl_task.title
                     task.description = tmpl_task.description
                     task.priority = tmpl_task.priority
                     task.checklist = tmpl_task.checklist
+                    task.source_template_name = template.name
                     
                     if tmpl_task.target_time is not None:
-                        task.start_time = calculated_start
-                        task.due_date = calculated_due
+                        if task.start_time != calculated_start:
+                            task.start_time = calculated_start
+                            changes_made = True
+                        if task.due_date != calculated_due:
+                            task.due_date = calculated_due
+                            changes_made = True
                     
-                    # Sync subtasks non-destructively
-                    from backend.db.models.core import ActivitySubtask
-                    concrete_subs = {s.title: s for s in task.subtasks}
-                    tmpl_sub_titles = set()
-                    
-                    for sub in tmpl_task.subtasks:
-                        title = sub.get("title", "Unnamed")
-                        tmpl_sub_titles.add(title)
-                        if title not in concrete_subs:
-                            # Create missing template subtask
-                            new_sub = ActivitySubtask(
-                                task_id=str(task.id),
-                                title=title,
-                                is_completed=1 if sub.get("is_completed") else 0,
-                                is_template_subtask=1
-                            )
-                            db.add(new_sub)
-                    
-                    # Delete subtasks that were removed from the template,
-                    # EXCEPT if they were manually added on the Planner Page (is_template_subtask == 0)
-                    for s_title, subtask in concrete_subs.items():
-                        if s_title not in tmpl_sub_titles and subtask.is_template_subtask == 1:
-                            db.delete(subtask)
+                    sub_changes = await self._sync_subtasks(task, tmpl_task)
+                    if sub_changes:
+                        changes_made = True
                         
                 synced_tasks.append(task)
             else:
@@ -192,15 +213,15 @@ class TemplateService:
                     description=tmpl_task.description,
                     priority=tmpl_task.priority,
                     checklist=tmpl_task.checklist,
-                    source_template_name=template.name,
+                    source_template_id=str(template.id),
                     source_template_task_id=str(tmpl_task.id),
+                    source_template_name=template.name,
                     start_time=calculated_start,
                     due_date=calculated_due,
                 )
-                db.add(task)
-                db.flush()
+                self.template_repo.db.add(task)
+                await self.template_repo.db.flush()
                 
-                from backend.db.models.core import ActivitySubtask
                 for sub in tmpl_task.subtasks:
                     subtask = ActivitySubtask(
                         task_id=str(task.id),
@@ -208,54 +229,43 @@ class TemplateService:
                         is_completed=1 if sub.get("is_completed") else 0,
                         is_template_subtask=1
                     )
-                    db.add(subtask)
+                    self.template_repo.db.add(subtask)
 
                 synced_tasks.append(task)
+                changes_made = True
 
-        # Remove tasks that are no longer in the template (only if pending)
-        for task_list in existing_by_tmpl_id.values():
-            for task in task_list:
-                if task.status == "pending" and task.source_template_name == template.name:
-                    db.delete(task)
-        for task_list in existing_by_title.values():
-            for task in task_list:
-                if task.status == "pending" and task.source_template_name == template.name:
-                    db.delete(task)
-
-        db.commit()
-        return synced_tasks
+        if changes_made:
+            await self.template_repo.commit()
+            
+        if not synced_tasks:
+            return []
+        
+        if not changes_made:
+            return synced_tasks
+            
+        task_ids = [str(t.id) for t in synced_tasks]
+        result = await self.template_repo.db.execute(select(Task).options(selectinload(Task.subtasks), selectinload(Task.category), selectinload(Task.checkins)).filter(Task.id.in_(task_ids)))
+        return list(result.scalars().all())
 
     # ------------------------------------------------------------------
     # Template Tasks
     # ------------------------------------------------------------------
 
-    def create_template_task(
-        self, db: Session, template: PlannerTemplate, data: TemplateTaskCreate
+    async def create_template_task(
+        self, template: PlannerTemplate, data: TemplateTaskCreate
     ) -> TemplateTask:
         task = TemplateTask(template_id=str(template.id), **data.model_dump())
-        db.add(task)
-        db.commit()
-        db.refresh(task)
-        return task
+        return await self.template_task_repo.create(task)
 
-    def get_template_task(
-        self, db: Session, template_id: UUID, task_id: UUID
+    async def get_template_task(
+        self, template_id: UUID, task_id: UUID
     ) -> TemplateTask | None:
-        return (
-            db.query(TemplateTask)
-            .filter(TemplateTask.id == task_id, TemplateTask.template_id == template_id)
-            .first()
-        )
+        return await self.template_task_repo.get_template_task(template_id, task_id)
 
-    def update_template_task(
-        self, db: Session, task: TemplateTask, data: TemplateTaskUpdate
+    async def update_template_task(
+        self, task: TemplateTask, data: TemplateTaskUpdate
     ) -> TemplateTask:
-        for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(task, field, value)
-        db.commit()
-        db.refresh(task)
-        return task
+        return await self.template_task_repo.update(task, **data.model_dump(exclude_unset=True))
 
-    def delete_template_task(self, db: Session, task: TemplateTask) -> None:
-        db.delete(task)
-        db.commit()
+    async def delete_template_task(self, task: TemplateTask) -> None:
+        await self.template_task_repo.delete(task)

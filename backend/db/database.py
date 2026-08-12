@@ -1,7 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.pool import QueuePool
-
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 from backend.core.config import settings
 from sqlalchemy.types import TypeDecorator, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -26,13 +24,29 @@ if not settings.DATABASE_URL:
         "Copy .env.example to .env and configure your database connection."
     )
 
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+elif db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif db_url.startswith("sqlite://"):
+    db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+
+if "?" in db_url:
+    db_url = db_url.split("?")[0]
+
 _connect_args: dict = {}
+if db_url.startswith("postgresql+asyncpg"):
+    _connect_args["ssl"] = "require"
+    _connect_args["statement_cache_size"] = 0
+    _connect_args["prepared_statement_cache_size"] = 0
+
 _pool_kwargs: dict = {
     "pool_pre_ping": True,
 }
 
-if settings.DATABASE_URL.startswith("sqlite"):
-    _connect_args["check_same_thread"] = False
+if db_url.startswith("sqlite"):
+    pass
 else:
     # Neon Postgres aggressively closes idle SSL connections.
     # Keep the pool small and recycle connections frequently.
@@ -41,24 +55,20 @@ else:
         max_overflow=5,
         pool_recycle=120,
         pool_timeout=30,
-        poolclass=QueuePool,
     )
 
-engine = create_engine(
-    settings.DATABASE_URL,
+engine = create_async_engine(
+    db_url,
     connect_args=_connect_args,
     **_pool_kwargs,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
 
 
-def get_db():
+async def get_db():
     """Yield a database session and ensure it is closed after use."""
-    db = SessionLocal()
-    try:
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()

@@ -28,13 +28,13 @@ export const MainLayout: FC<MainLayoutProps> = ({
   const [isAiOpen, setIsAiOpen] = useState(false);
 
   return (
-    <div className="h-screen w-full bg-background flex flex-col overflow-hidden text-text transition-colors duration-300">
+    <div className="h-screen w-full bg-transparent flex flex-col overflow-hidden text-text transition-colors duration-300">
       <TopNavbar activeView={activeView} setActiveView={setActiveView} />
       
       <div className="flex-1 w-full max-w-[1920px] mx-auto flex overflow-hidden relative">
         {/* Left Sidebar */}
-        <aside className="w-[320px] shrink-0 border-r border-border flex flex-col p-4 overflow-y-auto bg-sidebar-bg/80 backdrop-blur-md">
-          {profile && <UserProfileCard profile={profile} />}
+        <aside className="w-[320px] shrink-0 border-r border-border flex flex-col p-4 overflow-y-auto bg-zinc-50/50 dark:bg-zinc-900/50">
+          {profile && <UserProfileCard profile={profile} setAppView={setAppView} />}
           <div className="mt-6 flex-1 flex flex-col">
             <TemplateList profile={profile} setProfile={setProfile} setAppView={setAppView} />
           </div>
@@ -48,7 +48,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
         </aside>
 
         {/* Center Workspace */}
-        <main className="flex-1 flex flex-col h-full overflow-hidden bg-background relative z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-transparent relative z-10 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
           {children}
         </main>
 
@@ -60,7 +60,7 @@ export const MainLayout: FC<MainLayoutProps> = ({
               animate={{ width: 360, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-              className="shrink-0 border-l border-border bg-card/80 backdrop-blur-md h-full flex flex-col relative z-20 shadow-[-10px_0_20px_-5px_rgba(0,0,0,0.05)]"
+              className="shrink-0 border-l border-border bg-zinc-50/50 dark:bg-zinc-900/50 h-full flex flex-col relative z-20 shadow-[-10px_0_20px_-5px_rgba(0,0,0,0.05)]"
             >
               <div className="absolute top-4 -left-4 z-30">
                 <button

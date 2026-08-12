@@ -4,15 +4,16 @@ export const fetchTemplates = async () => {
   return await apiRequest(`/templates`);
 };
 
-export const createTemplate = async (name, description = '') => {
+export const createTemplate = async (payload) => {
   return await apiRequest(`/templates`, {
     method: 'POST',
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify(payload),
   });
 };
 
 export const applyTemplate = async (templateId, targetDate) => {
-  return await apiRequest(`/templates/${templateId}/apply?target_date=${targetDate}`, {
+  const tzOffset = new Date().getTimezoneOffset();
+  return await apiRequest(`/templates/${templateId}/apply?target_date=${targetDate}&tz_offset=${tzOffset}`, {
     method: 'POST',
   });
 };

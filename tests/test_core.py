@@ -1,3 +1,7 @@
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy import select
 """Unit tests for backend core utilities: security, JWT, and OAuth2 providers.
 
 Covers:
@@ -12,12 +16,17 @@ import pytest
 from jose import JWTError
 
 from backend.core.jwt import create_access_token, decode_access_token
-from backend.core.oauth2_providers import GoogleOAuth2, GitHubOAuth2, OAuthUserInfo
+from backend.core.oauth2_providers import GoogleOAuth2Provider, GitHubOAuth2Provider, OAuthUserInfo
 from backend.core.security import hash_password, verify_password
+
+GoogleOAuth2 = GoogleOAuth2Provider()
+GitHubOAuth2 = GitHubOAuth2Provider()
+
 
 
 class TestSecurity:
-    def test_hash_and_verify_password(self):
+    @pytest.mark.asyncio
+    async def test_hash_and_verify_password(self):
         pwd = "my_secret_password_123"
         hashed = hash_password(pwd)
 
@@ -25,7 +34,8 @@ class TestSecurity:
         assert verify_password(pwd, hashed) is True
         assert verify_password("wrong_password", hashed) is False
 
-    def test_verify_legacy_pbkdf2_password(self):
+    @pytest.mark.asyncio
+    async def test_verify_legacy_pbkdf2_password(self):
         password = "legacy_secret"
         salt = "testsalt"
         digest = hashlib.pbkdf2_hmac(
@@ -39,7 +49,8 @@ class TestSecurity:
 
 
 class TestJWT:
-    def test_create_and_decode_access_token(self):
+    @pytest.mark.asyncio
+    async def test_create_and_decode_access_token(self):
         data = {"sub": "user_id_123", "role": "user"}
         token = create_access_token(data)
 
@@ -49,25 +60,29 @@ class TestJWT:
         assert decoded["role"] == "user"
         assert "exp" in decoded
 
-    def test_decode_invalid_token_raises_error(self):
+    @pytest.mark.asyncio
+    async def test_decode_invalid_token_raises_error(self):
         with pytest.raises(JWTError):
             decode_access_token("invalid.jwt.token")
 
 
 class TestOAuth2Providers:
-    def test_google_authorize_url(self):
+    @pytest.mark.asyncio
+    async def test_google_authorize_url(self):
         url, state = GoogleOAuth2.authorize_url("http://localhost:5173/auth/callback")
         assert "accounts.google.com" in url
         assert "redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback" in url
         assert len(state) > 10
 
-    def test_github_authorize_url(self):
+    @pytest.mark.asyncio
+    async def test_github_authorize_url(self):
         url, state = GitHubOAuth2.authorize_url("http://localhost:5173/auth/callback")
         assert "github.com/login/oauth/authorize" in url
         assert "redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback" in url
         assert len(state) > 10
 
-    def test_google_fetch_user(self):
+    @pytest.mark.asyncio
+    async def test_google_fetch_user(self):
         import asyncio
 
         mock_token_resp = MagicMock()
@@ -86,14 +101,15 @@ class TestOAuth2Providers:
         mock_client.get.return_value = mock_user_resp
 
         with patch("httpx.AsyncClient", return_value=mock_client):
-            user_info = asyncio.run(GoogleOAuth2.fetch_user("code_123", "http://localhost/callback"))
+            user_info = await GoogleOAuth2.fetch_user("code_123", "http://localhost/callback")
             assert isinstance(user_info, OAuthUserInfo)
             assert user_info.email == "guser@example.com"
             assert user_info.name == "Google User"
             assert user_info.provider == "google"
             assert user_info.provider_id == "g_12345"
 
-    def test_github_fetch_user(self):
+    @pytest.mark.asyncio
+    async def test_github_fetch_user(self):
         import asyncio
 
         mock_token_resp = MagicMock()
@@ -121,7 +137,7 @@ class TestOAuth2Providers:
         mock_client.get.side_effect = [mock_user_resp, mock_emails_resp]
 
         with patch("httpx.AsyncClient", return_value=mock_client):
-            user_info = asyncio.run(GitHubOAuth2.fetch_user("code_456", "http://localhost/callback"))
+            user_info = await GitHubOAuth2.fetch_user("code_456", "http://localhost/callback")
             assert isinstance(user_info, OAuthUserInfo)
             assert user_info.email == "primary@example.com"
             assert user_info.name == "GitHub User"

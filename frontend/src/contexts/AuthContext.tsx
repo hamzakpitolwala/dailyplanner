@@ -28,13 +28,16 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   useEffect(() => {
     const hash = window.location.hash;
     if (hash) {
-      const params = new URLSearchParams(hash.substring(1));
+      const params = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : hash);
       const oauthToken = params.get('token');
       if (oauthToken) {
         localStorage.setItem('token', oauthToken);
         setToken(oauthToken);
+        params.delete('token');
+        const remaining = params.toString();
+        const newHash = remaining ? `#${remaining}` : '';
+        window.history.replaceState(null, '', window.location.pathname + newHash);
       }
-      window.history.replaceState(null, '', window.location.pathname);
     }
   }, []);
 

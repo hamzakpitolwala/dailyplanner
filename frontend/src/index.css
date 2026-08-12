@@ -29,8 +29,34 @@
     --primary-hover: #fdba74;
   }
 
+  html {
+    @apply bg-background;
+  }
+
   body {
-    @apply bg-background text-text antialiased;
+    @apply text-text antialiased;
+    background-color: transparent;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url('/doodle-pattern.png');
+    background-repeat: repeat;
+    background-size: 400px;
+    opacity: 0.06;
+    mix-blend-mode: multiply;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .dark body::before {
+    filter: invert(1) hue-rotate(180deg);
+    mix-blend-mode: screen;
+    opacity: 0.08;
   }
 }
 

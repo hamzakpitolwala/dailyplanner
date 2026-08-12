@@ -1,147 +1,241 @@
-import { styles } from '../../utils/styles';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Plus, Clock, FileText, CheckCircle2, Calendar } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 
+/**
+ * @param {Object} props
+ * @param {any} [props.initialTask]
+ * @param {any} props.onSubmit
+ * @param {any} props.onCancel
+ * @param {boolean} [props.isTemplateMode]
+ * @param {string|null} [props.error]
+ */
 export const TaskForm = ({ 
-  taskForm, 
-  setTaskForm, 
-  editingTaskId, 
+  initialTask, 
   onSubmit, 
   onCancel,
-  isTemplateMode = false
+  isTemplateMode = false,
+  error = null
 }) => {
+  const [formData, setFormData] = useState(initialTask || {});
+
+  // Update internal state if initialTask changes (e.g. switching from Add to Edit)
+  useEffect(() => {
+    setFormData(initialTask || {});
+  }, [initialTask]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
   return (
-    <div style={styles.panel}>
-      <h2>{editingTaskId ? 'Edit Task' : 'Add Task'}</h2>
-      <form onSubmit={onSubmit} style={styles.form}>
-        <input
-          style={styles.input}
-          placeholder="Title"
-          value={taskForm.title}
-          onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-          required
-        />
-        {/* Simplified category as we might need a dropdown for actual category_ids, but for now we can leave it empty or handled by a text field if we had a category name. Since backend requires category_id, we will leave it as an advanced feature or use a placeholder dropdown if we fetched categories. For now, omit or keep simple. */}
-        <div style={styles.timeGrid}>
-          <label style={styles.label}>
-            Start Time
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="bg-card border border-border rounded-2xl shadow-lg p-6 w-full text-text relative"
+    >
+      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+        {formData.id ? 'Edit Task' : 'Add New Task'}
+      </h2>
+
+      {!formData.id && (
+        <div className="flex bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, source: 'manual' })}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${(!formData.source || formData.source === 'manual') ? 'bg-white dark:bg-zinc-700 shadow-sm text-text' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+          >
+            Standard Task
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, source: 'calendar' })}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${formData.source === 'calendar' ? 'bg-white dark:bg-zinc-700 shadow-sm text-text' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+          >
+            Google Calendar Task
+          </button>
+        </div>
+      )}
+      
+      {formData.source === 'calendar' && (
+        <div className="mb-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs font-semibold flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <span>{formData.id ? 'Linked to Google Calendar — saving will sync changes to your Google Calendar event.' : 'This task will be automatically created as a new event in your Google Calendar.'}</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium flex items-center gap-2">
+          <span>{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        
+        {/* Title Input */}
+        <div>
+          <input
+            className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium text-lg placeholder:font-normal"
+            placeholder="What do you want to accomplish?"
+            value={formData.title || ''}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            required
+          />
+        </div>
+
+        {/* Grid for Times and Priority */}
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Start Time
+            </label>
             <input
-              style={styles.input}
+              className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-border rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               type="time"
-              value={taskForm.start_time || ''}
-              onChange={(e) => setTaskForm({ ...taskForm, start_time: e.target.value })}
+              value={formData.start_time || ''}
+              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
               required
             />
-          </label>
-          <label style={styles.label}>
-            End Time
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              End Time
+            </label>
             <input
-              style={styles.input}
+              className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-border rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               type="time"
-              value={taskForm.end_time || ''}
-              onChange={(e) => setTaskForm({ ...taskForm, end_time: e.target.value })}
+              value={formData.end_time || ''}
+              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
               required
             />
-          </label>
-          <label style={styles.label}>
-            Priority (1-5)
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              Priority (1-5)
+            </label>
             <input
-              style={styles.input}
+              className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-border rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               type="number"
               min="1"
               max="5"
-              value={taskForm.priority}
-              onChange={(e) => setTaskForm({ ...taskForm, priority: parseInt(e.target.value, 10) || 1 })}
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value, 10) || 1 })}
             />
-          </label>
+          </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Checkboxes */}
+        <div className="flex gap-6 p-4 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl border border-border/50">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input 
               type="checkbox"
-              checked={!!taskForm.requires_reason}
-              onChange={(e) => setTaskForm({ ...taskForm, requires_reason: e.target.checked })}
+              className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
+              checked={!!formData.requires_reason}
+              onChange={(e) => setFormData({ ...formData, requires_reason: e.target.checked })}
             />
-            Require reason if missed
+            <span className="text-sm font-medium group-hover:text-primary transition-colors">
+              Require reason if missed
+            </span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input 
               type="checkbox"
-              checked={!!taskForm.allows_alternate}
-              onChange={(e) => setTaskForm({ ...taskForm, allows_alternate: e.target.checked })}
+              className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary"
+              checked={!!formData.allows_alternate}
+              onChange={(e) => setFormData({ ...formData, allows_alternate: e.target.checked })}
             />
-            Allow alternate activity
+            <span className="text-sm font-medium group-hover:text-primary transition-colors">
+              Allow alternate activity
+            </span>
           </label>
         </div>
-        <textarea
-          style={styles.textarea}
-          placeholder="Description / Notes"
-          value={taskForm.description}
-          onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-        />
 
-        <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <h4 style={{ margin: '0 0 0.5rem 0', color: '#334155' }}>Sub-tasks</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-            {(taskForm.subtasks || []).map((sub, index) => (
-              <div key={sub.id || index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Description */}
+        <div>
+          <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <FileText className="w-3 h-3" />
+            Description / Notes
+          </label>
+          <textarea
+            className="w-full bg-zinc-50 dark:bg-zinc-900/50 border border-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all min-h-[100px] resize-y"
+            placeholder="Add any extra details here..."
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+        </div>
+
+        {/* Sub-tasks Area */}
+        <div className="p-4 bg-zinc-50 dark:bg-zinc-900/30 border border-border rounded-xl">
+          <h4 className="text-sm font-bold flex items-center gap-2 mb-4">
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            Sub-tasks
+          </h4>
+          
+          <div className="space-y-2 mb-4">
+            {(formData.subtasks || []).map((sub, index) => (
+              <div key={sub.id || index} className="flex items-center gap-3 bg-card border border-border/50 p-2.5 rounded-lg shadow-sm group">
                 <input
                   type="checkbox"
+                  className="w-4 h-4 rounded text-primary focus:ring-primary accent-primary cursor-pointer"
                   checked={sub.is_completed}
                   onChange={async (e) => {
                     const checked = e.target.checked;
-                    if (!isTemplateMode && editingTaskId && sub.id && !String(sub.id).startsWith('temp_')) {
+                    if (!isTemplateMode && formData.id && sub.id && !String(sub.id).startsWith('temp_')) {
                       const { updateSubtask } = await import('../../api/taskApi');
                       try {
-                        await updateSubtask(editingTaskId, sub.id, { is_completed: checked });
+                        await updateSubtask(formData.id, sub.id, { is_completed: checked });
                       } catch (err) {
                         console.error(err);
                         return;
                       }
                     }
-                    setTaskForm({
-                      ...taskForm,
-                      subtasks: (taskForm.subtasks || []).map((s, i) => i === index ? { ...s, is_completed: checked } : s)
+                    setFormData({
+                      ...formData,
+                      subtasks: (formData.subtasks || []).map((s, i) => i === index ? { ...s, is_completed: checked } : s)
                     });
                   }}
-                  style={{ width: '16px', height: '16px' }}
                 />
-                <span style={{ flex: 1, textDecoration: sub.is_completed ? 'line-through' : 'none', color: sub.is_completed ? '#94a3b8' : '#0f172a' }}>
+                <span className={`flex-1 text-sm transition-all ${sub.is_completed ? 'line-through text-zinc-400 dark:text-zinc-500' : 'text-text'}`}>
                   {sub.title}
                 </span>
                 <button
                   type="button"
                   onClick={async () => {
                     if (!window.confirm('Delete sub-task?')) return;
-                    if (!isTemplateMode && editingTaskId && sub.id && !String(sub.id).startsWith('temp_')) {
+                    if (!isTemplateMode && formData.id && sub.id && !String(sub.id).startsWith('temp_')) {
                       const { deleteSubtask } = await import('../../api/taskApi');
                       try {
-                        await deleteSubtask(editingTaskId, sub.id);
+                        await deleteSubtask(formData.id, sub.id);
                       } catch (err) {
                         console.error(err);
                         return;
                       }
                     }
-                    setTaskForm({
-                      ...taskForm,
-                      subtasks: (taskForm.subtasks || []).filter((s, i) => i !== index)
+                    setFormData({
+                      ...formData,
+                      subtasks: (formData.subtasks || []).filter((s, i) => i !== index)
                     });
                   }}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md opacity-0 group-hover:opacity-100 transition-all"
                   title="Delete sub-task"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             ))}
-            {(!taskForm.subtasks || taskForm.subtasks.length === 0) && (
-              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>No sub-tasks added yet.</span>
+            {(!formData.subtasks || formData.subtasks.length === 0) && (
+              <p className="text-sm text-zinc-500 italic">No sub-tasks added yet.</p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          
+          <div className="flex gap-2">
             <input
               id="new-subtask-title"
-              style={{ ...styles.input, marginBottom: 0, flex: 1 }}
+              className="flex-1 bg-card border border-border rounded-lg py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               placeholder="New sub-task title..."
               onKeyDown={async (e) => {
                 if (e.key === 'Enter') {
@@ -152,25 +246,25 @@ export const TaskForm = ({
                   
                   let newSub = { id: `temp_${Date.now()}`, title, is_completed: false };
                   
-                  if (!isTemplateMode && editingTaskId) {
+                  if (!isTemplateMode && formData.id) {
                     const { createSubtask } = await import('../../api/taskApi');
                     try {
-                      newSub = await createSubtask(editingTaskId, title);
+                      newSub = await createSubtask(formData.id, title);
                     } catch (err) {
                       console.error(err);
                       return;
                     }
                   }
-                  setTaskForm({
-                    ...taskForm,
-                    subtasks: [...(taskForm.subtasks || []), newSub]
+                  setFormData({
+                    ...formData,
+                    subtasks: [...(formData.subtasks || []), newSub]
                   });
                 }
               }}
             />
             <button
               type="button"
-              style={styles.button}
+              className="px-3 py-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-text text-sm font-medium rounded-lg transition-colors flex items-center justify-center"
               onClick={async () => {
                 const input = document.getElementById('new-subtask-title');
                 const title = input.value.trim();
@@ -179,39 +273,43 @@ export const TaskForm = ({
                 
                 let newSub = { id: `temp_${Date.now()}`, title, is_completed: false };
                 
-                if (!isTemplateMode && editingTaskId) {
+                if (!isTemplateMode && formData.id) {
                   const { createSubtask } = await import('../../api/taskApi');
                   try {
-                    newSub = await createSubtask(editingTaskId, title);
+                    newSub = await createSubtask(formData.id, title);
                   } catch (err) {
                     console.error(err);
                     return;
                   }
                 }
-                setTaskForm({
-                  ...taskForm,
-                  subtasks: [...(taskForm.subtasks || []), newSub]
+                setFormData({
+                  ...formData,
+                  subtasks: [...(formData.subtasks || []), newSub]
                 });
               }}
             >
-              Add
+              <Plus className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div style={{ ...styles.actions, marginTop: '1rem' }}>
-          <button style={styles.primaryButton} type="submit">
-            {editingTaskId ? 'Save Changes' : 'Add'}
-          </button>
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-border mt-4">
           <button
-            style={styles.button}
+            className="px-5 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-text text-sm font-semibold rounded-xl transition-colors"
             type="button"
             onClick={onCancel}
           >
             Cancel
           </button>
+          <button 
+            className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-xl shadow-md shadow-primary/20 transition-all" 
+            type="submit"
+          >
+            {formData.id ? 'Save Changes' : 'Add Task'}
+          </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 };

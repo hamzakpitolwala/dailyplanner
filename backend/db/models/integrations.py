@@ -1,15 +1,26 @@
-"""Integration / OAuth token models.
-
-Portable types only (no JSONB/ARRAY/UUID) for SQLite / CI compatibility.
-The `scopes` field is stored as a JSON list instead of Postgres ARRAY(Text).
-"""
-
 import uuid
 from sqlalchemy import Column, DateTime, ForeignKey, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.types import TypeDecorator
+from sqlalchemy.dialects.postgresql import ARRAY, TEXT
 
 from backend.db.database import Base, PortableUUID
+
+
+class PortableScopes(TypeDecorator):
+    """
+    Portable scopes column type.
+    Maps to ARRAY(TEXT) on PostgreSQL and JSON on SQLite.
+    """
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(ARRAY(TEXT))
+        else:
+            return dialect.type_descriptor(JSON)
 
 
 def _uuid() -> str:
@@ -30,7 +41,7 @@ class UserOAuthToken(Base):
     provider = Column(String(50), nullable=False)
     access_token = Column(Text, nullable=False)
     refresh_token = Column(Text, nullable=False)
-    scopes = Column(JSON, nullable=False, server_default="[]")   # list[str] as JSON
+    scopes = Column(PortableScopes, nullable=False, default=list)   # list[str] as JSON or ARRAY
     expires_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -55,15 +66,23 @@ class ExternalSyncedEvent(Base):
     )
     source_provider = Column(String(50), nullable=False)
     external_id = Column(String(255), nullable=False)
-    event_type = Column(String(50), nullable=False)
-    parsed_summary = Column(Text, nullable=False)
+    calendar_id = Column(String(255), server_default="primary", nullable=False)
+    event_type = Column(String(50), nullable=False, server_default="calendar_event")
+    parsed_summary = Column(Text, nullable=False, server_default="")
+    summary = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    location = Column(Text, nullable=True)
+    status = Column(String(50), server_default="confirmed", nullable=False)
     start_time = Column(DateTime(timezone=True), nullable=True)
     end_time = Column(DateTime(timezone=True), nullable=True)
+    raw_payload = Column(JSON, nullable=True)
     extra_metadata = Column(JSON, nullable=True)
+    last_synced_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
     user = relationship("User", back_populates="synced_events")
+    tasks = relationship("Task", back_populates="external_event")
 
     __table_args__ = (
         UniqueConstraint("user_id", "external_id", name="uq_user_external_event"),

@@ -1,26 +1,12 @@
-import { useState, type FC } from 'react';
+import { useState, memo, type FC } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit2, Trash2, MoreVertical, Plus, BookmarkPlus } from 'lucide-react';
+import { Edit2, Trash2, MoreVertical, Plus, BookmarkPlus, Calendar } from 'lucide-react';
 import { cn, getStatusColor, getPriorityLabel, timeToPixels, calculateDurationPixels } from './TimelineUtils';
 import { TaskCheckinModal } from './TaskCheckinModal';
 import { TASK_STATUSES } from '../../utils/constants';
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  priority: number;
-  status: string;
-  start_time?: string;
-  due_date?: string;
-  requires_reason?: number;
-  allows_alternate?: number;
-  missed_reason?: string;
-  alternate_activity?: string;
-  source_template_name?: string;
-  source_template_task_id?: string;
-  subtasks?: { id: string; title: string; is_completed: boolean }[];
-}
+import { Task, Subtask } from '../../types';
 
 interface TimelineTaskCardProps {
   task: Task;
@@ -36,8 +22,8 @@ interface TimelineTaskCardProps {
   layout?: { left: number; width: number };
 }
 
-export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({ 
-  task, 
+export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
+  task,
   pixelsPerMinute,
   onEdit,
   onDelete,
@@ -46,7 +32,7 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
   isSubtask = false,
   tasks = [],
   plannerDate = '',
-  setMessage = () => {},
+  setMessage = () => { },
   layout = { left: 0, width: 1 }
 }) => {
   const top = timeToPixels(task.start_time, pixelsPerMinute);
@@ -59,10 +45,7 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
 
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
-    if (isoString.includes('T')) {
-      return isoString.split('T')[1].substring(0, 5);
-    }
-    return isoString.substring(0, 5);
+    return new Date(isoString).toTimeString().substring(0, 5);
   };
 
   const [activeCheckinStatus, setActiveCheckinStatus] = useState<string | null>(null);
@@ -71,12 +54,12 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
   const localToday = new Date().toLocaleDateString('en-CA');
   const taskDate = task.due_date ? task.due_date.split('T')[0] : '';
   const isPastDate = taskDate && taskDate < localToday;
-  const isTerminalState = isPastDate || task.status === 'completed' || task.status === 'not_done' || task.status === 'pending_not_done' || task.status === 'partial_not_done';
+  // Terminal state no longer locks the UI, users can always toggle
+  const isTerminalState = false;
   const isRescheduleDisabled = task.due_date ? new Date(task.due_date) < new Date() : false;
 
   const handleStatusClick = (newStatus: string) => {
-    if (isTerminalState) return;
-    
+
     if (newStatus === 'rescheduled') {
       if (isRescheduleDisabled) return;
       setActiveCheckinStatus(newStatus);
@@ -106,9 +89,9 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
         "absolute rounded-xl border border-border/50 shadow-sm transition-shadow",
         "bg-card p-3 flex flex-col overflow-hidden hover:shadow-lg hover:border-zinc-300"
       )}
-      style={{ 
-        top, 
-        height, 
+      style={{
+        top,
+        height,
         minHeight: isHovered ? 'max-content' : Math.max(80, height),
         zIndex: isHovered ? 50 : 10,
         left: `calc(${baseLeftOffset}px + ${layout.left} * (100% - ${baseLeftOffset + rightOffset}px))`,
@@ -117,8 +100,13 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
     >
       <div className="flex justify-between items-start gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">{task.title}</h4>
+            {task.source === 'calendar' && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <Calendar className="w-3 h-3" /> Google
+              </span>
+            )}
             <span className="text-xs shrink-0" title={`Priority ${task.priority}`}>
               {getPriorityLabel(task.priority)}
             </span>
@@ -145,27 +133,22 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
               <div className="flex justify-between items-center text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mb-1">
                 <span>Sub-tasks</span>
                 {task.subtasks && task.subtasks.length > 0 && (
-                  <span>{task.subtasks.filter(s => s.is_completed).length}/{task.subtasks.length}</span>
+                  <span>{task.subtasks.filter((s: Subtask) => s.is_completed).length}/{task.subtasks.length}</span>
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                {task.subtasks?.map((sub, index) => (
+                {task.subtasks?.map((sub: Subtask, index: number) => (
                   <div key={sub.id || index} className="flex items-center gap-1 group/sub">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="w-3 h-3 text-orange-500 rounded border-zinc-300"
-                      checked={sub.is_completed}
-                      disabled={isTerminalState}
+                      checked={Boolean(sub.is_completed)}
                       onChange={async (e) => {
-                        if (isTerminalState) return;
                         const checked = e.target.checked;
                         if (!isSubtask && task.id && sub.id) {
                           const { updateSubtask } = await import('../../api/taskApi');
                           try {
                             await updateSubtask(task.id, sub.id, { is_completed: checked });
-                            // Notify parent to reload tasks, or rely on parent timer. 
-                            // Since we have no direct refresh prop, we just rely on loadTasks from PlannerPage if possible
-                            // Or better: trigger a custom event
                             window.dispatchEvent(new Event('refresh-tasks'));
                           } catch (err) {
                             console.error(err);
@@ -179,7 +162,7 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
                     )}>
                       {sub.title}
                     </span>
-                    {!isTerminalState && (
+                    <div className="flex gap-1">
                       <button
                         className="opacity-0 group-hover/sub:opacity-100 p-0.5 hover:bg-zinc-200 rounded text-red-500 transition-opacity"
                         onClick={async () => {
@@ -198,13 +181,13 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))}
-                {isAddingSubtask && !isTerminalState && (
+                {isAddingSubtask && (
                   <div className="flex items-center gap-1 mt-1">
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       autoFocus
                       className="text-[10px] w-full px-1 py-0.5 border border-orange-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
                       placeholder="New subtask... (Enter to save)"
@@ -237,9 +220,9 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
               </div>
               {task.subtasks && task.subtasks.length > 0 && (
                 <div className="w-full bg-zinc-100 rounded-full h-1 mt-1 overflow-hidden border border-zinc-200">
-                  <div 
+                  <div
                     className="bg-orange-500 h-full transition-all duration-300"
-                    style={{ width: `${(task.subtasks.filter(s => s.is_completed).length / task.subtasks.length) * 100}%` }}
+                    style={{ width: `${(task.subtasks.filter((s: Subtask) => s.is_completed).length / task.subtasks.length) * 100}%` }}
                   />
                 </div>
               )}
@@ -250,25 +233,25 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
         <div className="flex items-center gap-1 shrink-0">
           <AnimatePresence>
             {isHovered && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="flex items-center gap-1 bg-white/90 backdrop-blur rounded-lg p-1 shadow-sm border border-zinc-100"
               >
-                {!isTerminalState && (
-                  <button 
+                <div className="ml-auto flex gap-1">
+                  <button
                     onClick={(e) => { e.stopPropagation(); setIsAddingSubtask(true); }}
                     className="p-1 hover:bg-zinc-100 rounded text-orange-600 transition-colors"
                     title="Add Subtask"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
-                )}
+                </div>
                 {(!task.source_template_name && !task.source_template_task_id) && (
                   <>
                     {onAddToTemplate && (
-                      <button 
+                      <button
                         onClick={() => onAddToTemplate(task)}
                         className="p-1 hover:bg-zinc-100 rounded text-amber-600 transition-colors"
                         title="Add to Active Template"
@@ -276,14 +259,14 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
                         <BookmarkPlus className="w-4 h-4" />
                       </button>
                     )}
-                    <button 
+                    <button
                       onClick={() => onEdit(task)}
                       className="p-1 hover:bg-zinc-100 rounded text-zinc-600 transition-colors"
                       title="Edit"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button 
+                    <button
                       onClick={() => onDelete(task.id)}
                       className="p-1 hover:bg-zinc-100 rounded text-black transition-colors"
                       title="Delete"
@@ -295,16 +278,16 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
-          {!isHovered && !isTerminalState && (
-             <button className="p-1 text-zinc-400 lg:hidden">
-               <MoreVertical className="w-4 h-4" />
-             </button>
+          {!isHovered && (
+            <button className="p-1 text-zinc-400 lg:hidden">
+              <MoreVertical className="w-4 h-4" />
+            </button>
           )}
         </div>
       </div>
 
-      {isHovered && !isTerminalState && (
-        <motion.div 
+      {isHovered && (
+        <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-3 flex flex-wrap gap-1.5"
@@ -318,9 +301,9 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
                 disabled={disabled}
                 className={cn(
                   "px-2 py-1 text-[10px] font-medium rounded border transition-colors",
-                  task.status === s.value 
+                  task.status === s.value
                     ? "bg-zinc-800 text-white border-zinc-800"
-                    : disabled 
+                    : disabled
                       ? "bg-zinc-50 text-zinc-400 border-zinc-200 cursor-not-allowed"
                       : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
                 )}
@@ -354,4 +337,4 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = ({
       )}
     </motion.div>
   );
-};
+});

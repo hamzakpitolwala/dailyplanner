@@ -5,9 +5,10 @@ import { cn } from '../../components/Planner/TimelineUtils';
 interface MonthCalendarProps {
   plannerDate: string;
   setPlannerDate: (date: string) => void;
+  minDate?: string;
 }
 
-export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerDate }) => {
+export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerDate, minDate }) => {
   const currentSelectedDate = new Date(plannerDate || new Date().toISOString().split('T')[0]);
   const [currentMonth, setCurrentMonth] = useState(new Date(currentSelectedDate.getFullYear(), currentSelectedDate.getMonth(), 1));
 
@@ -46,6 +47,7 @@ export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerD
   }
 
   const handlePrevMonth = () => {
+    if (isPrevMonthDisabled) return;
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   };
 
@@ -55,11 +57,21 @@ export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerD
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+  let isPrevMonthDisabled = false;
+  if (minDate) {
+    const minD = new Date(minDate);
+    const prevM = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    // If the prev month is strictly before the month of minDate
+    if (prevM.getFullYear() < minD.getFullYear() || (prevM.getFullYear() === minD.getFullYear() && prevM.getMonth() < minD.getMonth())) {
+      isPrevMonthDisabled = true;
+    }
+  }
+
   return (
     <div className="flex flex-col bg-white rounded-xl border border-border shadow-sm p-2 w-[220px]">
       {/* Calendar Header */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <button onClick={handlePrevMonth} className="p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors">
+        <button onClick={handlePrevMonth} disabled={isPrevMonthDisabled} className={`p-1 rounded-md transition-colors ${isPrevMonthDisabled ? 'text-zinc-200 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'}`}>
           <ChevronLeft className="w-3.5 h-3.5" />
         </button>
         <span className="text-xs font-semibold text-zinc-700">
@@ -90,17 +102,20 @@ export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerD
 
           const isSelected = dayIso === selectedIso;
           const isToday = dayIso === todayIso;
+          const isPastMinDate = minDate ? dayIso < minDate : false;
 
           return (
             <button
               key={idx}
-              onClick={() => setPlannerDate(dayIso)}
+              onClick={() => !isPastMinDate && setPlannerDate(dayIso)}
+              disabled={isPastMinDate}
               className={cn(
                 "w-7 h-7 mx-auto rounded-full flex items-center justify-center text-[11px] font-medium transition-all",
-                !day.isCurrentMonth && "text-zinc-300",
-                day.isCurrentMonth && !isSelected && !isToday && "text-zinc-700 hover:bg-zinc-100",
-                day.isCurrentMonth && isToday && !isSelected && "text-orange-600 bg-orange-50 font-bold",
-                isSelected && "bg-orange-600 text-white shadow-md shadow-orange-200"
+                isPastMinDate && "text-zinc-200 cursor-not-allowed",
+                !isPastMinDate && !day.isCurrentMonth && "text-zinc-300",
+                !isPastMinDate && day.isCurrentMonth && !isSelected && !isToday && "text-zinc-700 hover:bg-zinc-100",
+                !isPastMinDate && day.isCurrentMonth && isToday && !isSelected && "text-orange-600 bg-orange-50 font-bold",
+                !isPastMinDate && isSelected && "bg-orange-600 text-white shadow-md shadow-orange-200"
               )}
             >
               {day.dayNumber}

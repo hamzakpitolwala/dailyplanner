@@ -1,26 +1,10 @@
-import { useRef, useEffect, type FC } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, type FC } from 'react';
 import { TimelineAxis } from './TimelineAxis';
 import { CurrentTimeIndicator } from './CurrentTimeIndicator';
 import { TimelineTaskCard } from './TimelineTaskCard';
 import { timeToPixels, calculateDurationPixels, parseTimeToMinutes } from './TimelineUtils';
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  priority: number;
-  status: string;
-  start_time?: string;
-  due_date?: string;
-}
-
-interface FixedBlock {
-  id: string;
-  name: string;
-  start_time: string; // "HH:MM"
-  end_time: string; // "HH:MM"
-  days_of_week: number[];
-}
+import { Task, FixedBlock } from '../../types';
 
 interface PlannerTimelineProps {
   tasks: Task[];
@@ -33,7 +17,7 @@ interface PlannerTimelineProps {
   setMessage: (msg: string) => void;
 }
 
-export const PlannerTimeline: FC<PlannerTimelineProps> = ({
+const PlannerTimelineComponent: FC<PlannerTimelineProps> = ({
   tasks,
   fixedBlocks,
   plannerDate,
@@ -57,11 +41,13 @@ export const PlannerTimeline: FC<PlannerTimelineProps> = ({
     }
   }, []);
 
-  const dayOfWeek = new Date(plannerDate).getDay();
-  const activeBlocks = (fixedBlocks || []).filter(b => b.days_of_week.includes(dayOfWeek));
+  const activeBlocks = useMemo(() => {
+    const dayOfWeek = new Date(plannerDate).getDay();
+    return (fixedBlocks || []).filter(b => b.days_of_week.includes(dayOfWeek));
+  }, [fixedBlocks, plannerDate]);
 
   // Determine if a task is a subtask (entirely within a fixed block)
-  const isTaskInsideBlock = (task: Task) => {
+  const isTaskInsideBlock = useCallback((task: Task) => {
     if (!task.start_time || !task.due_date) return false;
     const taskStart = parseTimeToMinutes(task.start_time);
     const taskEnd = parseTimeToMinutes(task.due_date);
@@ -71,7 +57,7 @@ export const PlannerTimeline: FC<PlannerTimelineProps> = ({
       const blockEnd = parseTimeToMinutes(block.end_time);
       return taskStart >= blockStart && taskEnd <= blockEnd;
     });
-  };
+  }, [activeBlocks]);
 
   const calculateLayouts = (tasksToLayout: Task[]) => {
     const sorted = [...tasksToLayout].sort((a, b) => parseTimeToMinutes(a.start_time) - parseTimeToMinutes(b.start_time));
@@ -131,12 +117,12 @@ export const PlannerTimeline: FC<PlannerTimelineProps> = ({
     return layouts;
   };
 
-  const taskLayouts = calculateLayouts(tasks || []);
+  const taskLayouts = useMemo(() => calculateLayouts(tasks || []), [tasks]);
 
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-full overflow-y-auto bg-zinc-50/50 rounded-xl border border-border shadow-inner"
+      className="relative w-full h-full overflow-y-auto bg-zinc-50/50 dark:bg-zinc-900/50 rounded-xl border border-border shadow-inner"
     >
       <div className="flex" style={{ height: totalHeight }}>
         {/* Left Axis */}
@@ -187,3 +173,5 @@ export const PlannerTimeline: FC<PlannerTimelineProps> = ({
     </div>
   );
 };
+
+export const PlannerTimeline = React.memo(PlannerTimelineComponent);

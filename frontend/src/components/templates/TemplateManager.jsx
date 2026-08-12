@@ -167,9 +167,9 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
 
       <div style={styles.activityList}>
         {templates.map(tmpl => (
-          <div key={tmpl.id} style={{ ...styles.panel, border: profile?.active_planner_id === tmpl.id ? '2px solid #3b82f6' : '1px solid #e5e7eb' }}>
+          <div key={tmpl.id} style={{ ...styles.panel, border: profile?.active_planner_id === tmpl.id ? '2px solid var(--primary)' : '1px solid var(--border)' }}>
             <div style={styles.header}>
-              <h3>{tmpl.name} {profile?.active_planner_id === tmpl.id && <span style={{ color: '#3b82f6', fontSize: '0.875rem' }}>(Active)</span>}</h3>
+              <h3>{tmpl.name} {profile?.active_planner_id === tmpl.id && <span style={{ color: 'var(--primary)', fontSize: '0.875rem' }}>(Active)</span>}</h3>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button style={styles.button} onClick={() => handleApplyPlanner(tmpl.id)}>
                   {profile?.active_planner_id === tmpl.id ? 'Applied' : 'Apply Planner'}
@@ -188,7 +188,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
                       <span>{t.title} {t.target_time ? `(${t.target_time.substring(0, 5)})` : ''}</span>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button 
-                          style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '0.2rem' }} 
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '0.2rem' }} 
                           onClick={() => startEditTask(tmpl.id, t)}
                           title="Edit task"
                         >
@@ -204,7 +204,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
                       </div>
                     </div>
                     {t.subtasks && t.subtasks.length > 0 && (
-                      <ul style={{ paddingLeft: '1.5rem', marginTop: '0.25rem', fontSize: '0.875rem', color: '#4b5563' }}>
+                      <ul style={{ paddingLeft: '1.5rem', marginTop: '0.25rem', fontSize: '0.875rem', color: 'var(--text)', opacity: 0.8 }}>
                         {t.subtasks.map((sub, idx) => (
                           <li key={idx} style={{ listStyleType: 'disc' }}>
                             {sub.title}
@@ -227,8 +227,8 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
       </div>
 
       {showTaskForm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ ...styles.card, width: '100%', maxWidth: 500 }}>
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
             <h3 style={{ marginTop: 0 }}>Add Task to Template</h3>
               <TaskForm
                 taskForm={taskForm}

@@ -4,18 +4,18 @@ import logging
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.requests import Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.core.jwt import create_access_token
-from backend.core.oauth2_providers import GitHubOAuth2, GoogleOAuth2, OAuthUserInfo
-from backend.db.database import get_db
+from backend.core.limiter import limiter
+from backend.core.oauth2_providers import OAuth2ProviderFactory, OAuthUserInfo
 from backend.services.auth_services import AuthService
+from backend.api.deps import get_auth_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["oauth2"])
-_service = AuthService()
 
 
 # ---------------------------------------------------------------------------
@@ -24,14 +24,15 @@ _service = AuthService()
 
 
 @router.get("/google/authorize")
-async def google_authorize():
+@limiter.limit("10/minute")
+async def google_authorize(request: Request):
     """Redirect the user to Google's consent screen."""
     if not settings.GOOGLE_CLIENT_ID:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Google OAuth2 is not configured",
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/#auth?error=google_oauth_not_configured"
         )
-    url, state = GoogleOAuth2.authorize_url(settings.GOOGLE_REDIRECT_URI)
+    provider = OAuth2ProviderFactory.get_provider("google")
+    url, state = provider.authorize_url(settings.GOOGLE_REDIRECT_URI)
     return RedirectResponse(url=url)
 
 
@@ -39,7 +40,7 @@ async def google_authorize():
 async def google_callback(
     code: str | None = None,
     error: str | None = None,
-    db: Session = Depends(get_db),
+    service: AuthService = Depends(get_auth_service),
 ):
     """Handle Google's redirect after user consent."""
     if error or not code:
@@ -49,14 +50,15 @@ async def google_callback(
         )
 
     try:
-        user_info = await GoogleOAuth2.fetch_user(code, settings.GOOGLE_REDIRECT_URI)
+        provider = OAuth2ProviderFactory.get_provider("google")
+        user_info = await provider.fetch_user(code, settings.GOOGLE_REDIRECT_URI)
     except Exception as exc:
         logger.exception("Google OAuth2 token exchange failed")
         return RedirectResponse(
             url=f"{settings.FRONTEND_URL}/#error=oauth_failed"
         )
 
-    return _complete_oauth_login(db, user_info)
+    return await _complete_oauth_login(service, user_info)
 
 
 # ---------------------------------------------------------------------------
@@ -65,14 +67,15 @@ async def google_callback(
 
 
 @router.get("/github/authorize")
-async def github_authorize():
+@limiter.limit("10/minute")
+async def github_authorize(request: Request):
     """Redirect the user to GitHub's authorization page."""
     if not settings.GITHUB_CLIENT_ID:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="GitHub OAuth2 is not configured",
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/#auth?error=github_oauth_not_configured"
         )
-    url, state = GitHubOAuth2.authorize_url(settings.GITHUB_REDIRECT_URI)
+    provider = OAuth2ProviderFactory.get_provider("github")
+    url, state = provider.authorize_url(settings.GITHUB_REDIRECT_URI)
     return RedirectResponse(url=url)
 
 
@@ -80,7 +83,7 @@ async def github_authorize():
 async def github_callback(
     code: str | None = None,
     error: str | None = None,
-    db: Session = Depends(get_db),
+    service: AuthService = Depends(get_auth_service),
 ):
     """Handle GitHub's redirect after user authorization."""
     if error or not code:
@@ -90,14 +93,15 @@ async def github_callback(
         )
 
     try:
-        user_info = await GitHubOAuth2.fetch_user(code, settings.GITHUB_REDIRECT_URI)
+        provider = OAuth2ProviderFactory.get_provider("github")
+        user_info = await provider.fetch_user(code, settings.GITHUB_REDIRECT_URI)
     except Exception as exc:
         logger.exception("GitHub OAuth2 token exchange failed")
         return RedirectResponse(
             url=f"{settings.FRONTEND_URL}/#error=oauth_failed"
         )
 
-    return _complete_oauth_login(db, user_info)
+    return await _complete_oauth_login(service, user_info)
 
 
 # ---------------------------------------------------------------------------
@@ -105,11 +109,10 @@ async def github_callback(
 # ---------------------------------------------------------------------------
 
 
-def _complete_oauth_login(db: Session, info: OAuthUserInfo) -> RedirectResponse:
+async def _complete_oauth_login(service: AuthService, info: OAuthUserInfo) -> RedirectResponse:
     """Find or create the user, issue a JWT, and redirect to the frontend."""
     try:
-        user = _service.find_or_create_oauth_user(
-            db,
+        user = await service.find_or_create_oauth_user(
             email=info.email,
             provider=info.provider,
             provider_id=info.provider_id,
@@ -121,6 +124,6 @@ def _complete_oauth_login(db: Session, info: OAuthUserInfo) -> RedirectResponse:
             url=f"{settings.FRONTEND_URL}/#error=account_error"
         )
 
-    token = create_access_token({"sub": user.email})
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     params = urlencode({"token": token})
     return RedirectResponse(url=f"{settings.FRONTEND_URL}/#{params}")

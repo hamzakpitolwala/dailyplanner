@@ -1,5 +1,4 @@
 import { TASK_STATUSES } from '../../utils/constants';
-import { styles } from '../../utils/styles';
 
 export const Badge = ({ status }) => {
   const config = TASK_STATUSES.find((s) => s.value === status) || {
@@ -9,8 +8,8 @@ export const Badge = ({ status }) => {
 
   return (
     <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
       style={{
-        ...styles.badge,
         background: config.color + '18',
         color: config.color,
         border: `1px solid ${config.color}40`,

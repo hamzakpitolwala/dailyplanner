@@ -1,14 +1,13 @@
 import logging
-import re
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from backend.core.jwt import create_access_token
 from backend.core.security import hash_password, verify_password
 from backend.db.models.core import User
 from backend.schemas.auth_schema import UserResponse
+from backend.db.repositories.user import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +15,14 @@ logger = logging.getLogger(__name__)
 class AuthService:
     """Handles user registration, authentication, and OAuth account linking."""
 
-    def register(
-        self, db: Session, email: str, password: str, timezone: str = "UTC"
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def register(
+        self, email: str, password: str, timezone: str = "UTC"
     ) -> UserResponse:
         """Create a new user with email/password and timezone preference."""
-        existing_user = db.query(User).filter(User.email == email).first()
+        existing_user = await self.user_repo.get_by_email(email)
         if existing_user:
             raise ValueError("User with this email already exists.")
 
@@ -29,70 +31,62 @@ class AuthService:
             hashed_password=hash_password(password),
             timezone=timezone,
         )
-        db.add(user)
-
         try:
-            db.commit()
+            await self.user_repo.create(user)
         except IntegrityError:
-            db.rollback()
+            await self.user_repo.db.rollback()
             raise ValueError("User already exists.")
 
-        db.refresh(user)
         return UserResponse.model_validate(user)
 
-    def login(self, db: Session, email: str, password: str) -> str | None:
+    async def login(self, email: str, password: str) -> str | None:
         """Authenticate a user and return a JWT access token, or None if invalid."""
-        user = db.query(User).filter(User.email == email).first()
+        user = await self.user_repo.get_by_email(email)
         if not user or not user.hashed_password:
             return None
 
-        if not verify_password(password, user.hashed_password):
+        if not verify_password(password, str(user.hashed_password)):
             return None
 
         return create_access_token({"sub": str(user.id), "email": user.email})
 
-    def get_user_by_id(self, db: Session, user_id: UUID) -> User | None:
+    async def change_password(self, user_id: UUID, old_password: str, new_password: str) -> None:
+        """Change a user's password."""
+        user = await self.user_repo.get(user_id)
+        if not user:
+            raise ValueError("User not found.")
+        
+        if user.hashed_password and not verify_password(old_password, str(user.hashed_password)):
+            raise ValueError("Incorrect old password.")
+            
+        await self.user_repo.update(user, hashed_password=hash_password(new_password))
+
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
         """Look up a user by primary UUID key."""
-        return db.query(User).filter(User.id == user_id).first()
+        return await self.user_repo.get(user_id)
 
-    def get_user_by_email(self, db: Session, email: str) -> User | None:
+    async def get_user_by_email(self, email: str) -> User | None:
         """Look up a user by email address."""
-        return db.query(User).filter(User.email == email).first()
+        return await self.user_repo.get_by_email(email)
 
-    def find_or_create_oauth_user(
+    async def find_or_create_oauth_user(
         self,
-        db: Session,
         email: str,
         provider: str,
         provider_id: str,
         username: str | None = None,
     ) -> User:
-        """Find an existing user by OAuth provider ID, fall back to email, or create one.
-
-        Strategy:
-        1. Exact match on (auth_provider, auth_provider_id)  — same account, re-login.
-        2. Match on email only — existing email/password user; link the OAuth provider.
-        3. No match — create a brand-new OAuth-only user.
-        """
         # 1. Lookup by provider identity (most specific)
-        user = (
-            db.query(User)
-            .filter(
-                User.auth_provider == provider,
-                User.auth_provider_id == provider_id,
-            )
-            .first()
-        )
+        user = await self.user_repo.get_by_oauth_provider(provider, provider_id)
         if user:
             return user
 
         # 2. Lookup by email (link provider to existing account)
-        user = db.query(User).filter(User.email == email).first()
+        user = await self.user_repo.get_by_email(email)
         if user:
-            user.auth_provider = provider          # type: ignore[assignment]
-            user.auth_provider_id = provider_id    # type: ignore[assignment]
-            db.commit()
-            db.refresh(user)
+            await self.user_repo.update(
+                user, auth_provider=provider, auth_provider_id=provider_id
+            )
             return user
 
         # 3. Create a new OAuth-only account (no password)
@@ -102,16 +96,14 @@ class AuthService:
             auth_provider=provider,
             auth_provider_id=provider_id,
         )
-        db.add(user)
         try:
-            db.commit()
+            await self.user_repo.create(user)
         except IntegrityError:
-            db.rollback()
+            await self.user_repo.db.rollback()
             # Race condition: another request created the user; try email lookup again
-            user = db.query(User).filter(User.email == email).first()
+            user = await self.user_repo.get_by_email(email)
             if user is None:
                 raise ValueError(f"Could not create OAuth user for email={email}")
             return user
 
-        db.refresh(user)
         return user

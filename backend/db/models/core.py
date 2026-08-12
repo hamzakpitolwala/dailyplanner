@@ -37,32 +37,25 @@ class User(Base):
     # Relationships
     categories = relationship("Category", back_populates="user", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
-    planner_templates = relationship(
-        "PlannerTemplate", back_populates="user", cascade="all, delete-orphan"
+    planner_templates = relationship("PlannerTemplate", back_populates="user", cascade="all, delete-orphan"
     )
-    oauth_tokens = relationship(
-        "UserOAuthToken",
+    oauth_tokens = relationship("UserOAuthToken",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    synced_events = relationship(
-        "ExternalSyncedEvent", back_populates="user", cascade="all, delete-orphan"
+    synced_events = relationship("ExternalSyncedEvent", back_populates="user", cascade="all, delete-orphan"
     )
-    user_profile = relationship(
-        "UserProfile",
+    user_profile = relationship("UserProfile",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    ai_recommendations = relationship(
-        "AIRecommendation", back_populates="user", cascade="all, delete-orphan"
+    ai_recommendations = relationship("AIRecommendation", back_populates="user", cascade="all, delete-orphan"
     )
-    ai_profile = relationship(
-        "AIUserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    ai_profile = relationship("AIUserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
-    fixed_blocks = relationship(
-        "FixedBlock", back_populates="user", cascade="all, delete-orphan"
+    fixed_blocks = relationship("FixedBlock", back_populates="user", cascade="all, delete-orphan"
     )
 
 
@@ -104,16 +97,27 @@ class Task(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     priority = Column(Integer, server_default="1", nullable=False)
-    status = Column(String(20), server_default="pending", nullable=False)
+    status = Column(String(20), server_default="pending", nullable=False, index=True)
     checklist = Column(JSON, server_default="[]", nullable=False)
-    source_template_name = Column(String(100), nullable=True)
+    source_template_id = Column(String(36), nullable=True)
     source_template_task_id = Column(String(36), nullable=True)
-    start_time = Column(DateTime(timezone=True), nullable=True)
-    due_date = Column(DateTime(timezone=True), nullable=True) # acts as end_time
+    source_template_name = Column(String(255), nullable=True)
+    start_time = Column(DateTime(timezone=True), nullable=True, index=True)
+    due_date = Column(DateTime(timezone=True), nullable=True, index=True) # acts as end_time
     completed_at = Column(DateTime(timezone=True), nullable=True)
     
     requires_reason = Column(Integer, server_default="0", nullable=False)  # boolean SQLite compat
     allows_alternate = Column(Integer, server_default="0", nullable=False)
+
+    # Phase 6 Google Calendar / external event extensions
+    source = Column(String(20), server_default="manual", nullable=False, index=True)  # 'template', 'manual', 'calendar'
+    external_event_id = Column(
+        PortableUUID,
+        ForeignKey("external_synced_events.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    visibility = Column(String(20), server_default="normal", nullable=False, index=True)  # 'normal', 'planner-only', 'hidden'
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(
@@ -128,6 +132,8 @@ class Task(Base):
     category = relationship("Category", back_populates="tasks")
     checkins = relationship("TaskCheckin", back_populates="task", cascade="all, delete-orphan")
     subtasks = relationship("ActivitySubtask", back_populates="task", cascade="all, delete-orphan")
+    external_event = relationship("ExternalSyncedEvent", back_populates="tasks")
+
 
 class ActivitySubtask(Base):
     __tablename__ = "activity_subtasks"
@@ -222,6 +228,9 @@ class UserProfile(Base):
         unique=True,
         index=True,
     )
+    username = Column(String(255), unique=True, nullable=True, index=True)
+    dob = Column(String(50), nullable=True)
+    gender = Column(String(50), nullable=True)
     goals = Column(String(255), nullable=True)
     focus_times = Column(String(255), nullable=True)
     typical_disruptions = Column(String(255), nullable=True)

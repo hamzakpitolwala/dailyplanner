@@ -7,6 +7,7 @@ Each provider class knows how to:
 """
 
 import secrets
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from urllib.parse import urlencode
 
@@ -25,6 +26,20 @@ class OAuthUserInfo:
     provider_id: str
 
 
+class OAuth2Provider(ABC):
+    """Abstract Strategy class for OAuth2 providers."""
+
+    @abstractmethod
+    def authorize_url(self, redirect_uri: str) -> tuple[str, str]:
+        """Return the authorization redirect URL and the CSRF state string."""
+        pass
+
+    @abstractmethod
+    async def fetch_user(self, code: str, redirect_uri: str) -> OAuthUserInfo:
+        """Exchange the code for a token and fetch/return the user's profile."""
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Google
 # ---------------------------------------------------------------------------
@@ -34,11 +49,10 @@ _GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 
-class GoogleOAuth2:
-    """Google OAuth2 Authorization Code flow."""
+class GoogleOAuth2Provider(OAuth2Provider):
+    """Google OAuth2 Authorization Code flow strategy."""
 
-    @staticmethod
-    def authorize_url(redirect_uri: str) -> str:
+    def authorize_url(self, redirect_uri: str) -> tuple[str, str]:
         """Return the full Google consent-screen URL."""
         state = secrets.token_urlsafe(32)
         params = {
@@ -51,8 +65,7 @@ class GoogleOAuth2:
         }
         return f"{_GOOGLE_AUTH_URL}?{urlencode(params)}", state
 
-    @staticmethod
-    async def fetch_user(code: str, redirect_uri: str) -> OAuthUserInfo:
+    async def fetch_user(self, code: str, redirect_uri: str) -> OAuthUserInfo:
         """Exchange *code* for a token and return the user's profile."""
         async with httpx.AsyncClient(timeout=10) as client:
             # Step 1: code → access_token
@@ -95,11 +108,10 @@ _GITHUB_USER_URL = "https://api.github.com/user"
 _GITHUB_EMAILS_URL = "https://api.github.com/user/emails"
 
 
-class GitHubOAuth2:
-    """GitHub OAuth2 Authorization Code flow."""
+class GitHubOAuth2Provider(OAuth2Provider):
+    """GitHub OAuth2 Authorization Code flow strategy."""
 
-    @staticmethod
-    def authorize_url(redirect_uri: str) -> str:
+    def authorize_url(self, redirect_uri: str) -> tuple[str, str]:
         """Return the full GitHub authorization URL."""
         state = secrets.token_urlsafe(32)
         params = {
@@ -110,8 +122,7 @@ class GitHubOAuth2:
         }
         return f"{_GITHUB_AUTH_URL}?{urlencode(params)}", state
 
-    @staticmethod
-    async def fetch_user(code: str, redirect_uri: str) -> OAuthUserInfo:
+    async def fetch_user(self, code: str, redirect_uri: str) -> OAuthUserInfo:
         """Exchange *code* for a token and return the user's profile."""
         async with httpx.AsyncClient(timeout=10) as client:
             # Step 1: code → access_token
@@ -157,3 +168,24 @@ class GitHubOAuth2:
             provider="github",
             provider_id=str(profile["id"]),
         )
+
+
+# ---------------------------------------------------------------------------
+# Factory
+# ---------------------------------------------------------------------------
+
+class OAuth2ProviderFactory:
+    """Factory to retrieve OAuth2 provider strategy instances."""
+
+    _providers = {
+        "google": GoogleOAuth2Provider(),
+        "github": GitHubOAuth2Provider(),
+    }
+
+    @classmethod
+    def get_provider(cls, provider: str) -> OAuth2Provider:
+        """Get provider strategy instance by name."""
+        name = provider.lower()
+        if name not in cls._providers:
+            raise ValueError(f"Unsupported OAuth2 provider: {provider}")
+        return cls._providers[name]

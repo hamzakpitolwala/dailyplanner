@@ -2,26 +2,27 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from fastapi.requests import Request
 
 from backend.core.oauth2 import get_current_user
-from backend.db.database import get_db
 from backend.db.models.core import User
-from backend.schemas.auth_schema import TokenResponse, UserCreate, UserLogin, UserResponse
+from backend.schemas.auth_schema import TokenResponse, UserCreate, UserLogin, UserResponse, ChangePasswordRequest
 from backend.services.auth_services import AuthService
+from backend.core.limiter import limiter
+from backend.api.deps import get_auth_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-_service = AuthService()
 
 
 @router.post("/register", response_model=UserResponse)
+@limiter.limit("5/minute")
 async def register(
-    user: UserCreate, db: Session = Depends(get_db)
+    request: Request,
+    user: UserCreate,
+    service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
-    # NOTE: UserCreate no longer has `username` — the new User model
-    # only tracks email, password, and timezone.
     try:
-        result = _service.register(db, user.email, user.password, user.timezone)
+        result = await service.register(user.email, user.password, user.timezone)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
@@ -30,10 +31,13 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def login(
-    user: UserLogin, db: Session = Depends(get_db)
+    request: Request,
+    user: UserLogin,
+    service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    access_token = _service.login(db, user.email, user.password)
+    access_token = await service.login(user.email, user.password)
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
@@ -42,13 +46,13 @@ async def login(
 
 
 @router.post("/token", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),
+    service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
-    # NOTE: OAuth2PasswordRequestForm.username is used as the email here,
-    # since login() takes email, not username.
-    access_token = _service.login(db, form_data.username, form_data.password)
+    access_token = await service.login(form_data.username, form_data.password)
     if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
@@ -59,3 +63,20 @@ async def token(
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+@router.post("/change-password")
+@limiter.limit("5/minute")
+async def change_password(
+    request: Request,
+    data: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    service: AuthService = Depends(get_auth_service),
+):
+    try:
+        await service.change_password(user.id, data.old_password, data.new_password)
+        return {"detail": "Password updated successfully"}
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        )

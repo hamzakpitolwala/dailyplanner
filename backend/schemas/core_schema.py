@@ -63,12 +63,16 @@ class TaskBase(BaseModel):
     priority: int = Field(default=1, ge=1)
     status: str = Field(default="pending", max_length=20)
     checklist: list[dict] = Field(default_factory=list)
-    source_template_name: str | None = Field(default=None, max_length=100)
+    source_template_id: str | None = Field(default=None, max_length=36)
     source_template_task_id: str | None = Field(default=None, max_length=36)
+    source_template_name: str | None = Field(default=None, max_length=255)
     start_time: datetime | None = None
     due_date: datetime | None = None
     requires_reason: bool = False
     allows_alternate: bool = False
+    source: str = Field(default="manual", max_length=20)
+    external_event_id: UUID | None = None
+    visibility: str = Field(default="normal", max_length=20)
 
 
 class TaskCreate(TaskBase):
@@ -83,13 +87,16 @@ class TaskUpdate(BaseModel):
     priority: int | None = Field(default=None, ge=1)
     status: str | None = Field(default=None, max_length=20)
     checklist: list[dict] | None = None
-    source_template_name: str | None = Field(default=None, max_length=100)
+    source_template_id: str | None = Field(default=None, max_length=36)
     source_template_task_id: str | None = Field(default=None, max_length=36)
     start_time: datetime | None = None
     due_date: datetime | None = None
     completed_at: datetime | None = None
     requires_reason: bool | None = None
     allows_alternate: bool | None = None
+    source: str | None = Field(default=None, max_length=20)
+    external_event_id: UUID | None = None
+    visibility: str | None = Field(default=None, max_length=20)
 
 
 class TaskResponse(TaskBase):
@@ -151,6 +158,9 @@ class TaskCheckinResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class UserProfileBase(BaseModel):
+    username: str | None = None
+    dob: str | None = None
+    gender: str | None = None
     goals: str | None = None
     focus_times: str | None = None
     typical_disruptions: str | None = None
@@ -168,6 +178,9 @@ class UserProfileCreate(UserProfileBase):
 
 
 class UserProfileUpdate(BaseModel):
+    username: str | None = None
+    dob: str | None = None
+    gender: str | None = None
     goals: str | None = None
     focus_times: str | None = None
     typical_disruptions: str | None = None
@@ -183,7 +196,7 @@ class UserProfileUpdate(BaseModel):
 class UserProfileResponse(UserProfileBase):
     id: UUID
     user_id: UUID
-    updated_at: datetime
+    updated_at: datetime | None = None
     ai_inferred_traits: dict | None = None
 
     model_config = {"from_attributes": True}

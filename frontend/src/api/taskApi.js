@@ -1,8 +1,18 @@
 import { apiRequest } from './client';
 import { TASKS_BASE } from '../utils/constants';
 
-export const fetchTasks = async () => {
-  return await apiRequest(`${TASKS_BASE}`);
+export const fetchTasks = async (targetDate) => {
+  let url = `${TASKS_BASE}`;
+  if (targetDate) {
+    const tzOffset = new Date().getTimezoneOffset();
+    url += `?target_date=${targetDate}&tz_offset=${tzOffset}`;
+  }
+  console.log("Fetching tasks for URL:", url);
+  return await apiRequest(url);
+};
+
+export const fetchEarliestTaskDate = async () => {
+  return await apiRequest(`${TASKS_BASE}/earliest-date`);
 };
 
 export const createTask = async (taskData) => {
@@ -19,8 +29,9 @@ export const updateTask = async (taskId, taskData) => {
   });
 };
 
-export const deleteTask = async (taskId) => {
-  return await apiRequest(`${TASKS_BASE}/${taskId}`, {
+export const deleteTask = async (taskId, deleteInCalendar = false) => {
+  const query = deleteInCalendar ? '?delete_in_calendar=true' : '';
+  return await apiRequest(`${TASKS_BASE}/${taskId}${query}`, {
     method: 'DELETE',
   });
 };

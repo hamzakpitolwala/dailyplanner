@@ -1,18 +1,19 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { PlannerPage } from './PlannerPage';
-import { DashboardPage } from './DashboardPage.tsx';
-import { TemplateManager } from '../components/templates/TemplateManager';
-import { FixedBlockManager } from '../components/templates/FixedBlockManager';
 import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
 import { PlannerSelection } from '../components/onboarding/PlannerSelection';
 import { userApi } from '../api/userApi';
 import { MainLayout } from '../components/Layout/MainLayout';
 
+const PlannerPage = lazy(() => import('./PlannerPage').then(m => ({ default: m.PlannerPage })));
+const DashboardPage = lazy(() => import('./DashboardPage').then(m => ({ default: m.DashboardPage })));
+const UserProfilePage = lazy(() => import('./UserProfilePage').then(m => ({ default: m.UserProfilePage })));
+const ManageTemplatePage = lazy(() => import('./ManageTemplatePage').then(m => ({ default: m.ManageTemplatePage })));
+
 export const AppShell = () => {
   const { user } = useAuth();
   
-  // View states: 'planner', 'dashboard', 'templates'
+  // View states: 'planner', 'dashboard', 'templates', 'profile'
   const [appView, setAppView] = useState<string>('planner');
   const [message, setMessage] = useState('');
   const [profile, setProfile] = useState<any>(null);
@@ -24,7 +25,7 @@ export const AppShell = () => {
   useEffect(() => {
     // Sync appView and activeView when navigating
     if (appView === 'planner' || appView === 'dashboard') {
-      setActiveView(appView);
+      setActiveView(appView as 'planner' | 'dashboard');
     }
   }, [appView]);
 
@@ -73,32 +74,29 @@ export const AppShell = () => {
       )}
 
       <div className="flex-1 w-full h-full relative overflow-hidden">
-        {appView === 'planner' && (
-          <PlannerPage setMessage={setMessage} profile={profile} setAppView={setAppView} />
-        )}
-        
-        {appView === 'dashboard' && (
-          <DashboardPage />
-        )}
+        <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading view...</div>}>
+          {appView === 'planner' && (
+            <PlannerPage setMessage={setMessage} profile={profile} setAppView={setAppView} />
+          )}
+          
+          {appView === 'dashboard' && (
+            <DashboardPage />
+          )}
 
-        {appView === 'templates' && (
-          <div className="flex flex-col gap-6 p-6 h-full overflow-y-auto bg-zinc-50/50">
-            <div className="flex items-center gap-4 mb-4">
-              <button 
-                onClick={() => setAppView(activeView)}
-                className="px-4 py-2 text-sm font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
-              >
-                &larr; Back to {activeView === 'planner' ? 'Planner' : 'Dashboard'}
-              </button>
-              <h2 className="text-xl font-bold text-zinc-800">Template Settings</h2>
-            </div>
-            
-            <div className="max-w-4xl w-full mx-auto space-y-8">
-              <TemplateManager setMessage={setMessage} profile={profile} setProfile={setProfile} setAppView={setAppView} />
-              <FixedBlockManager setMessage={setMessage} />
-            </div>
-          </div>
-        )}
+          {appView === 'templates' && (
+            <ManageTemplatePage 
+              activeView={activeView}
+              setAppView={setAppView}
+              profile={profile}
+              setProfile={setProfile}
+              setMessage={setMessage}
+            />
+          )}
+
+          {appView === 'profile' && (
+            <UserProfilePage profile={profile} setProfile={setProfile} setMessage={setMessage} setAppView={setAppView} />
+          )}
+        </Suspense>
       </div>
     </MainLayout>
   );

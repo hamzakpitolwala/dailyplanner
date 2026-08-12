@@ -30,3 +30,10 @@ export const fetchMe = async () => {
 export const getOAuthUrl = (provider) => {
   return `${AUTH_BASE}/${provider}/authorize`;
 };
+
+export const changePassword = async (old_password, new_password) => {
+  return await apiRequest(`/change-password`, {
+    method: 'POST',
+    body: JSON.stringify({ old_password, new_password })
+  });
+};

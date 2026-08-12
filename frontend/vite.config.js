@@ -19,6 +19,8 @@ export default defineConfig({
       '/categories': 'http://127.0.0.1:8000',
       '/templates': 'http://127.0.0.1:8000',
       '/fixed-blocks': 'http://127.0.0.1:8000',
+      '/integrations': 'http://127.0.0.1:8000',
+      '/ai': 'http://127.0.0.1:8000',
     },
   },
 });

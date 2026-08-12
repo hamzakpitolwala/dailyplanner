@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://127.0.0.1:8000/auth/google/callback"
+    GOOGLE_CALENDAR_REDIRECT_URI: str = "http://127.0.0.1:8000/integrations/google/calendar/callback"
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_REDIRECT_URI: str = "http://127.0.0.1:8000/auth/github/callback"

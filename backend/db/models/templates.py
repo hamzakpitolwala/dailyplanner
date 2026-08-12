@@ -4,7 +4,7 @@ Portable types only (no JSONB/UUID) for SQLite / CI compatibility.
 """
 
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, Time
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -37,8 +37,7 @@ class PlannerTemplate(Base):
 
     # Relationships
     user = relationship("User", back_populates="planner_templates")
-    template_tasks = relationship(
-        "TemplateTask", back_populates="template", cascade="all, delete-orphan"
+    template_tasks = relationship("TemplateTask", back_populates="template", cascade="all, delete-orphan"
     )
 
 
@@ -57,7 +56,7 @@ class TemplateTask(Base):
     priority = Column(Integer, server_default="1", nullable=False)
     category_label = Column(String(50), nullable=True)
     relative_day_offset = Column(Integer, server_default="0", nullable=False)
-    target_time = Column(String(8), nullable=True)   # stored as "HH:MM:SS" string
+    target_time = Column(Time, nullable=True)
     duration_minutes = Column(Integer, server_default="60", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
     subtasks = Column(JSON, server_default="[]", nullable=False)

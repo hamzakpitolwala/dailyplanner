@@ -1,0 +1,332 @@
+AI guidance & recommendations
+An AI layer that:
+Generates starter planners based on onboarding + calendar constraints + fixed blocks.
+Produces daily/weekly summaries:
+What was done vs missed.
+Why tasks were missed (based on reasons and patterns).
+How calendar events and office hours influenced the day.
+How focused the user was (based on device telemetry).
+Suggests:
+Schedule changes (e.g., move study earlier).
+Sub‑task structure changes.
+Updated blocking rules or stricter focus windows.
+Users can accept or reject AI suggestions; nothing auto‑applies without user approval.
+
+Implement Phase 8 – AI recommendations & optimization
+Use:
+History of activities, check‑ins, fixed blocks, calendar conflicts, sub‑tasks, and (later) device focus metrics.
+Backend:
+Simple rule‑based logic to detect patterns (repeated misses in a time slot, overload, etc.).
+LLM to:
+Explain patterns.
+Propose schedule changes and sub‑task tweaks.
+Store proposals in ai_recommendation and track recommendation_outcome.
+Frontend:
+“Planner AI” panel where users can accept/reject changes.
+Show how suggestions will change their schedule.
+
+1. What Phase 8 adds on top of Phase 7
+You already have:
+Starter planner generation (Phase 7).
+Daily/weekly summaries (Phase 7).
+Planner core: templates, daily instances, activities, check‑ins.
+Google Calendar integration.
+
+Phase 8 adds:
+Pattern detection engine (rule-based) in backend:
+Repeated misses in same time slot.
+Overloaded days.
+Conflicts between planner and calendar.
+Sub‑tasks always left incomplete.
+Focus issues (from device telemetry).
+Recommendation engine (LLM + rules):
+Rules decide when to recommend.
+
+LLM writes:
+Explanation (“why”).
+Concrete suggestion(s):
+Move activity X from 21:00 to 18:00.
+Split 2‑hour block into 2 × 1‑hour blocks.
+Add / change sub‑tasks.
+Tighten or relax blocking rules.
+Recommendation storage and lifecycle:
+ai_recommendation table.
+recommendation_outcome table (accepted / rejected / ignored).
+
+UI to preview and apply:
+Planner AI panel shows suggestion cards.
+Each card shows:
+“Current vs suggested.”
+Reasoning.
+User can Accept/Reject.
+Accept triggers a backend action:
+Modify template.
+Modify tomorrow’s planner.
+Update block rules.
+This matches good AI recommendation UX: detect → explain → compare → act.
+
+2. Data model extensions
+2.1 ai_recommendation
+python
+class AIRecommendation(BaseModel):
+    id: int
+    user_id: int
+    kind: Literal[
+        "move_activity_time",
+        "change_activity_day",
+        "split_activity",
+        "merge_subtasks",
+        "add_subtasks",
+        "adjust_block_rules",
+        "reduce_load",
+        "other",
+    ]
+    scope: Literal["template", "daily_instance", "activity", "global"]
+    # Target references
+    template_id: Optional[int]
+    daily_planner_id: Optional[int]
+    activity_id: Optional[int]
+    # Suggested change payload (JSON)
+    payload: dict
+    # Human-friendly text
+    title: str
+    explanation: str
+    created_at: datetime
+    status: Literal["pending", "applied", "rejected", "expired"] = "pending"
+    source_period_start: date
+    source_period_end: date
+2.2 recommendation_outcome
+python
+class RecommendationOutcome(BaseModel):
+    id: int
+    recommendation_id: int
+    user_id: int
+    decision: Literal["accepted", "rejected", "ignored"]
+    decided_at: datetime
+    applied_change_ref: Optional[dict]  # e.g. new activity_id, new times
+You can also add computed metrics later (completion change post-accept).
+
+3. Rule-based pattern detection (backend)
+Implement a “pattern scanner” in backend that runs:
+on-demand when user opens dashboard / AI panel.
+
+It inspects:
+Activities + check‑ins over last N days/weeks.
+Fixed blocks.
+Calendar conflicts.
+Sub‑task completion.
+Monitoring sessions and focus %.
+
+3.1 Examples of simple rules
+Repeated misses in a time window
+
+
+If an activity with the same category/title is not_done or partial
+in the same time window (e.g., 21:00–22:00) ≥ 3 times in last 7 days,
+flag “bad time slot”.
+Overload day
+
+If planned focus time > X hours 
+AND completion rate < threshold 
+THEN suggest reducing load or splitting blocks.
+Calendar conflicts
+
+If planner activity overlaps with calendar event >= 20 minutes
+AND activity is repeatedly not_done
+THEN suggest moving the planner activity earlier/later or around meetings.
+Sub‑task always incomplete
+
+If parent activity often marked done but certain subtasks remain incomplete
+THEN suggest splitting task into separate activities or rephrasing sub‑tasks.
+Focus issues (when you add device telemetry)
+
+If monitoring sessions show < 50% time on allowed sites/apps
+AND activity is often partial/not_done
+THEN suggest stricter blocking or shorter blocks.
+Each rule outputs a structured “pattern event”:
+
+python
+{
+  "pattern_type": "repeated_miss_time_window",
+  "activity_ids": [...],
+  "time_window": "21:00-22:00",
+  "evidence": {... aggregated stats ...}
+}
+
+4. LLM recommendation generator
+Using Ollama (llama‑3.1) you already wired:
+
+4.1 System prompt
+You are an assistant that analyzes a user's daily planner data and suggests small, concrete schedule improvements.
+You will receive:
+- A brief user profile and goals.
+- Aggregated planner data (activities, completion, missed reasons).
+- Detected patterns from a rule-based system.
+You MUST respond with a JSON array of recommendations, each matching this schema:
+
+[
+  {
+    "kind": "move_activity_time | change_activity_day | split_activity | add_subtasks | adjust_block_rules | reduce_load | other",
+    "scope": "template | daily_instance | activity | global",
+    "target": {
+      "template_id": null or integer,
+      "daily_planner_id": null or integer,
+      "activity_id": null or integer
+    },
+    "payload": {
+      "from_time": "HH:MM" or null,
+      "to_time": "HH:MM" or null,
+      "from_day": "YYYY-MM-DD" or null,
+      "to_day": "YYYY-MM-DD" or null,
+      "new_subtasks": [ "string", ... ],
+      "new_block_rules": [ "domain1.com", "domain2.com" ],
+      "notes": "string"
+    },
+    "title": "short human-friendly title",
+    "explanation": "1-3 sentences explaining why this change may help",
+    "confidence": 0.0-1.0
+  }
+]
+
+Do NOT add any extra text. Output JSON only.
+
+4.2 User prompt content (backend)
+Backend builds a user prompt like:
+User profile:
+- Goal: Study for competitive exams
+- Focus times: 06:00-10:00, 20:00-22:00
+- Structure preference: high
+
+Recent planner history (last 7 days):
+- Activities, completion rates, partials, not_done, reschedules.
+- Summary of missed reasons by category.
+
+Fixed blocks:
+- Office hours: 09:00-18:30 (Mon-Fri)
+
+Calendar patterns:
+- Recurring meetings at 21:00 on Tue/Thu overlapping with study block.
+
+Detected patterns:
+1) repeated_miss_time_window:
+   - activity_id: 42 ("Study")
+   - window: 21:00-22:00
+   - missed 4 times in 7 days
+   - reasons: "too tired", "late meetings"
+
+2) overload_day:
+   - date: 2026-08-10
+   - planned focus = 7h, completed = 3h
+   - reasons: "meetings", "family"
+
+Please propose up to 3 specific changes that are realistic for next week.
+Backend then parses LLM JSON → AIRecommendation rows.
+
+5. Backend endpoints
+5.1 POST /ai/recommendations/generate
+Auth required.
+
+Optional body:
+{ "period": "week", "start_date": "YYYY-MM-DD" }
+
+Backend flow:
+Run pattern detection for user + given period.
+If no patterns found → return empty list.
+Build user prompt and call Ollama with system prompt above.
+Parse JSON into list of recs; validate via Pydantic.
+Insert into ai_recommendation with status="pending".
+Return list of pending recommendations.
+
+5.2 GET /ai/recommendations
+Query: status=pending etc.
+Returns:
+Pending recs for this user, including payload, title, explanation, and a diff preview if you want (e.g., computed on the fly).
+
+5.3 POST /ai/recommendations/{id}/decision
+Body: { "decision": "accepted" | "rejected" }.
+Backend:
+Validate ownership & status.
+
+If rejected:
+Mark status="rejected".
+Create RecommendationOutcome with decision="rejected".
+
+If accepted:
+Apply change according to kind and scope:
+move_activity_time: update activity.start_time/end_time or template version.
+change_activity_day: move to another day’s instance.
+split_activity: create two new activities, optionally archive original.
+add_subtasks: insert records into activity_subtask.
+adjust_block_rules: update block rules for device monitoring.
+reduce_load: lower number/duration of tasks on heavy days.
+Mark status="applied".
+Store actual changes in RecommendationOutcome.applied_change_ref.
+You keep all real changes in your normal domain tables; AI only proposes.
+"create an ai agent(s) to do all the above tasks of if accepted and call those agents when required"
+
+6. Frontend: Planner AI panel UX
+6.1 Showing suggestions
+In your Planner AI panel:
+Button “Get weekly improvement suggestions”.
+Calls POST /ai/recommendations/generate.
+
+Panel lists suggestion cards with:
+Title.
+Explanation (“Because you missed your 21:00 study slot 4 times last week…”).
+
+“Current vs suggested” section:
+e.g., “Current: Study 21:00–22:00. Suggested: 19:00–20:00.”
+Confidence indicator.
+
+6.2 Accept / reject
+Each card has:
+Accept button → calls POST /ai/recommendations/{id}/decision with accepted.
+Reject button → same with rejected.
+edit button → edit suggestions if ai in suggestion cards itself so that the user can make it acceptable
+
+On accept:
+Update planner state (e.g., time of activity).
+Show a small toast: “Study moved to 19:00–20:00 for weekdays starting next week.”
+Ensure you show exactly what will change before user clicks Accept (detect → explain → compare → act ).
+
+6.3 Safety
+Never auto-apply.
+Do not let AI override user edits silently.
+If applying a suggestion would conflict with a new calendar event or user change:
+Re-check constraints in backend; if conflict, fail the apply and ask for confirmation or propose an adjusted change.
+
+7. Suggested implementation order for Phase 8
+Data and infra
+Add ai_recommendation and recommendation_outcome tables.
+Add on-demand pattern_detection service.
+Pattern detection (basic)
+Implement 2–3 simple rules:
+repeated misses in same time window.
+overload day.
+calendar conflicts causing misses.
+LLM recommendation API
+Implement POST /ai/recommendations/generate:
+one week period for now.
+Build user prompt from pattern detection.
+Parse output into Pydantic model and store.
+Apply/decision API
+Implement POST /ai/recommendations/{id}/decision.
+
+implement:
+move_activity_time for daily instances.
+add_subtasks.
+adjust block rules
+reduce load
+create an agent(s) for these implementations
+
+Frontend integration
+In Planner AI panel:
+Add button to fetch/generate suggestions.
+Show suggestion cards with Accept/Reject.
+Show the resulting changes in the planner immediately after Accept.
+
+Iterate
+Expand pattern rules.
+Add weekly and daily scopes.
+Add device telemetry patterns when that subsystem is in place.
+Add per-suggestion metrics (did it improve adherence?).
