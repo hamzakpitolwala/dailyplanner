@@ -17,3 +17,6 @@ slowapi>=0.1.9,<1.0
 langchain>=0.3.0
 langgraph>=0.2.0
 langchain-ollama>=0.2.0
+google-api-python-client==2.198.0
+google-auth-httplib2==0.4.1
+google-auth-oauthlib==1.4.0
