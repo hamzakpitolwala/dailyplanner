@@ -33,3 +33,10 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+uvicorn_error.log
+error.log
+recent_error.txt
+prompt.txt
+planner.db
+dailyplanner.db
