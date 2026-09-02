@@ -15,8 +15,9 @@ from backend.core.security import generate_oauth_state, verify_oauth_state
 from backend.core.limiter import limiter
 from backend.db.models.core import User
 from backend.services.integration_service import IntegrationService
-from backend.api.deps import get_integration_service, get_task_service
+from backend.api.deps import get_integration_service, get_task_service, get_calendar_sync_manager
 from backend.services.task_service import TaskService
+from backend.services.calendar_sync_manager import CalendarSyncManager
 from backend.schemas.core_schema import TaskResponse
 
 logger = logging.getLogger(__name__)
@@ -153,8 +154,9 @@ async def sync_google_calendar(
     target_date: str,
     tz_offset: int = 0,
     user: User = Depends(get_current_user),
-    service: TaskService = Depends(get_task_service),
+    sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
+    task_service: TaskService = Depends(get_task_service),
 ) -> list[TaskResponse]:
     """Trigger background Google Calendar sync for target_date and return updated tasks list."""
-    await service.sync_google_calendar_for_date(user.id, target_date, tz_offset)
-    return await service.list_tasks(user.id, target_date, tz_offset)
+    await sync_manager.sync_google_calendar_for_date(user.id, target_date, tz_offset)
+    return await task_service.list_tasks(user.id, target_date, tz_offset)

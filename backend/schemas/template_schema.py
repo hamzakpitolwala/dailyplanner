@@ -17,6 +17,8 @@ class TemplateTaskBase(BaseModel):
     duration_minutes: int = Field(default=60)
     checklist: list[dict] = Field(default_factory=list)
     subtasks: list[dict] = Field(default_factory=list)
+    requires_reason: bool = False
+    allows_alternate: bool = False
 
 
 class TemplateTaskCreate(TemplateTaskBase):
@@ -33,6 +35,8 @@ class TemplateTaskUpdate(BaseModel):
     duration_minutes: int | None = None
     checklist: list[dict] | None = None
     subtasks: list[dict] | None = None
+    requires_reason: bool | None = None
+    allows_alternate: bool | None = None
 
 
 class TemplateTaskResponse(TemplateTaskBase):

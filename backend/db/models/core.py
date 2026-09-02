@@ -278,3 +278,51 @@ class FixedBlock(Base):
 
     # Relationships
     user = relationship("User", back_populates="fixed_blocks")
+
+
+class MonitoringSession(Base):
+    __tablename__ = "monitoring_sessions"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    user_id = Column(
+        PortableUUID,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    activity_id = Column(
+        PortableUUID,
+        ForeignKey("tasks.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    start_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ScreenEvent(Base):
+    __tablename__ = "screen_events"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    session_id = Column(
+        PortableUUID,
+        ForeignKey("monitoring_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    app_name = Column(String(255), nullable=True)
+    domain = Column(String(255), nullable=True)
+    duration_seconds = Column(Integer, server_default="0", nullable=False)
+    is_blocked = Column(Integer, server_default="0", nullable=False) # boolean
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class FeatureFlag(Base):
+    __tablename__ = "feature_flags"
+
+    id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
+    name = Column(String(255), unique=True, nullable=False, index=True)
+    enabled_global = Column(Integer, server_default="0", nullable=False) # boolean
+    rollout_percentage = Column(Integer, server_default="0", nullable=False)
+    description = Column(String(255), nullable=True)

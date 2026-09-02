@@ -4,6 +4,11 @@ export const fetchTemplates = async () => {
   return await apiRequest(`/templates`);
 };
 
+export const fetchTemplateById = async (templateId) => {
+  return await apiRequest(`/templates/${templateId}`);
+};
+
+
 export const createTemplate = async (payload) => {
   return await apiRequest(`/templates`, {
     method: 'POST',

@@ -133,7 +133,7 @@ def user_service(db_session):
 
 
 @pytest.fixture
-def task_service(db_session, integration_service):
+def task_service(db_session):
     from backend.db.repositories.task import TaskRepository, CategoryRepository
     from backend.db.repositories.user import UserRepository
     from backend.services.task_service import TaskService
@@ -141,7 +141,15 @@ def task_service(db_session, integration_service):
         task_repo=TaskRepository(db_session),
         category_repo=CategoryRepository(db_session),
         user_repo=UserRepository(db_session),
+    )
+
+
+@pytest.fixture
+def calendar_sync_manager(task_service, integration_service):
+    from backend.services.calendar_sync_manager import CalendarSyncManager
+    return CalendarSyncManager(
         integration_service=integration_service,
+        task_service=task_service,
     )
 
 

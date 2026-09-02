@@ -12,8 +12,8 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/hamzakhyperlinkinfosystem-code/dailyplanner-api
-  FRONTEND_IMAGE: ghcr.io/hamzakhyperlinkinfosystem-code/dailyplanner-web
+  BACKEND_IMAGE: ghcr.io/hamzakpitolwala/dailyplanner-backend
+  FRONTEND_IMAGE: ghcr.io/hamzakpitolwala/dailyplanner-frontend
 
 
 jobs:

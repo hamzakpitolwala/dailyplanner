@@ -27,7 +27,8 @@ from backend.schemas.core_schema import (
     SubtaskResponse,
 )
 from backend.services.task_service import TaskService
-from backend.api.deps import get_task_service
+from backend.services.calendar_sync_manager import CalendarSyncManager
+from backend.api.deps import get_task_service, get_calendar_sync_manager
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 categories_router = APIRouter(prefix="/categories", tags=["categories"])
@@ -63,17 +64,17 @@ async def get_earliest_task_date(
 async def create_task(
     payload: TaskCreate,
     user: User = Depends(get_current_user),
-    service: TaskService = Depends(get_task_service),
+    sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> TaskResponse:
     if payload.category_id is not None:
-        category = await service.get_category(user.id, payload.category_id) # type: ignore
+        category = await sync_manager.task_service.get_category(user.id, payload.category_id) # type: ignore
         if category is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Category not found",
             )
     try:
-        return await service.create_task(user.id, payload) # type: ignore
+        return await sync_manager.create_task_with_sync(user.id, payload) # type: ignore
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -136,20 +137,20 @@ async def update_task(
     task_id: UUID,
     payload: TaskUpdate,
     user: User = Depends(get_current_user),
-    service: TaskService = Depends(get_task_service),
+    sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> TaskResponse:
-    task = await service.get_task(user.id, task_id) # type: ignore
+    task = await sync_manager.task_service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     if payload.category_id is not None:
-        category = await service.get_category(user.id, payload.category_id) # type: ignore
+        category = await sync_manager.task_service.get_category(user.id, payload.category_id) # type: ignore
         if category is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Category not found",
             )
     try:
-        return await service.update_task(task, payload)
+        return await sync_manager.update_task_with_sync(task, payload)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -162,13 +163,13 @@ async def delete_task(
     task_id: UUID,
     delete_in_calendar: bool = False,
     user: User = Depends(get_current_user),
-    service: TaskService = Depends(get_task_service),
+    sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> None:
-    task = await service.get_task(user.id, task_id) # type: ignore
+    task = await sync_manager.task_service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     try:
-        await service.delete_task(task, delete_in_calendar=delete_in_calendar)
+        await sync_manager.delete_task_with_sync(task, delete_in_calendar=delete_in_calendar)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

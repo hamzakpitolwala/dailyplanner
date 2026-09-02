@@ -56,9 +56,9 @@ def sync_alter_tables(connection):
             "ALTER TABLE ai_recommendations ADD COLUMN IF NOT EXISTS source_period_end VARCHAR(20);",
         ]
         for stmt in statements:
-
             try:
-                connection.execute(text(stmt))
+                with connection.begin_nested():
+                    connection.execute(text(stmt))
             except Exception as e:
                 logger.warning("PostgreSQL schema migration statement warning: %s", e)
     elif dialect == "sqlite":
@@ -86,19 +86,27 @@ def sync_alter_tables(connection):
             "ALTER TABLE ai_recommendations ADD COLUMN source_period_end VARCHAR(20);",
         ]
         for stmt in statements:
-
             try:
-                connection.execute(text(stmt))
+                with connection.begin_nested():
+                    connection.execute(text(stmt))
             except Exception:
                 pass  # Ignore if column already exists in SQLite
 
 
+from backend.db.analytics_views import AnalyticsViewMigrator
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create database tables and ensure column migrations on startup."""
+    # Setup - sync our db metadata (models) with db
     async with engine.begin() as conn:
+        # Drop analytics views before schema migrations to avoid dependency locks
+        await conn.run_sync(lambda connection: AnalyticsViewMigrator(connection).drop_views())
+        
+        # standard SQLAlchemy models
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(sync_alter_tables)
+        # custom analytics views
+        await conn.run_sync(lambda connection: AnalyticsViewMigrator(connection).sync_views())
     logger.info("Database tables and schema columns ensured")
     yield
 
@@ -133,6 +141,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         return response
 
+from backend.core.logging import StructuredLoggingMiddleware
+app.add_middleware(StructuredLoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(Exception)
@@ -149,6 +159,8 @@ async def standard_exception_handler(request: Request, exc: Exception):
 from backend.api.calendar_integration_api import router as calendar_integration_router
 from backend.api.ai_api import router as ai_router
 from backend.api.ai_recommendations_api import router as ai_recommendations_router
+from backend.api.analytics_api import router as analytics_router
+from backend.api.agent_api import router as agent_router
 
 app.include_router(auth_router)
 app.include_router(oauth2_router)
@@ -160,6 +172,12 @@ app.include_router(template_router)
 app.include_router(user_router)
 app.include_router(ai_router)
 app.include_router(ai_recommendations_router)
+app.include_router(analytics_router)
+app.include_router(agent_router)
+
+# Mount MCP Server
+from backend.mcp_server.server import mcp
+app.mount("/mcp", mcp.http_app(transport="sse"))
 
 
 @app.get("/health")

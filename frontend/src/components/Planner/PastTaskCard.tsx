@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import { CheckCircle2, Circle, Clock, Info } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Info, Trash2 } from 'lucide-react';
 import { cn } from './TimelineUtils';
 
 interface Task {
@@ -15,9 +15,10 @@ interface Task {
 
 interface PastTaskCardProps {
   task: Task;
+  onDelete?: (id: string) => void;
 }
 
-export const PastTaskCard: FC<PastTaskCardProps> = ({ task }) => {
+export const PastTaskCard: FC<PastTaskCardProps> = ({ task, onDelete }) => {
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -58,15 +59,26 @@ export const PastTaskCard: FC<PastTaskCardProps> = ({ task }) => {
         </div>
         
         <div className="flex flex-col items-end shrink-0 gap-1">
-          <span className={cn(
-            "text-xs font-semibold px-2 py-1 rounded-md uppercase tracking-wider",
-            isCompleted || checkinStatus === 'completed' || checkinStatus === 'done' ? "bg-green-100 text-green-700" :
-            checkinStatus.includes('not_done') ? "bg-red-100 text-red-700" :
-            checkinStatus.includes('partial') ? "bg-yellow-100 text-yellow-700" :
-            "bg-zinc-100 text-zinc-600"
-          )}>
-            {formatStatus(checkinStatus)}
-          </span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn(
+              "text-xs font-semibold px-2 py-1 rounded-md uppercase tracking-wider",
+              isCompleted || checkinStatus === 'completed' || checkinStatus === 'done' ? "bg-green-100 text-green-700" :
+              checkinStatus.includes('not_done') ? "bg-red-100 text-red-700" :
+              checkinStatus.includes('partial') ? "bg-yellow-100 text-yellow-700" :
+              "bg-zinc-100 text-zinc-600"
+            )}>
+              {formatStatus(checkinStatus)}
+            </span>
+            {onDelete && (
+              <button 
+                onClick={() => onDelete(task.id)}
+                className="p-1 hover:bg-zinc-100 rounded text-zinc-400 hover:text-black transition-colors"
+                title="Delete Task"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
             <Clock className="w-3.5 h-3.5" />
             {formatTime(task.start_time)} - {formatTime(task.due_date)}

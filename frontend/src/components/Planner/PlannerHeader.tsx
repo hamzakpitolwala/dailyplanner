@@ -23,9 +23,14 @@ export const PlannerHeader: FC<PlannerHeaderProps> = ({
     <div className="flex flex-col gap-4 p-6 shrink-0 bg-transparent">
       <div className="flex items-start justify-between gap-4 w-full">
         <div className="flex flex-col min-w-0">
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Active Template</span>
-          <h2 className="text-2xl font-bold text-text truncate">
-            {activePlannerName || 'No active template'}
+          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1">Daily Schedule</span>
+          <h2 className="text-2xl font-bold text-text truncate flex items-center gap-2">
+            <span>{plannerDate === todayIso() ? "Today" : new Date(plannerDate).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+            {activePlannerName && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                {activePlannerName}
+              </span>
+            )}
           </h2>
           <button 
             onClick={onAddTask}

@@ -47,4 +47,57 @@ export const aiApi = {
     });
     return response;
   },
+
+  /**
+   * @param {string} message
+   * @param {string | null} [conversationId]
+   */
+  agentChat: async (message, conversationId = null) => {
+    const payload = { message };
+    if (conversationId) payload.conversation_id = conversationId;
+    
+    const response = await apiRequest('/ai/agent/chat', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response;
+  },
+
+  /**
+   * @param {string} workflowId
+   * @param {boolean} approved
+   * @param {any} [overrides]
+   */
+  agentApprove: async (workflowId, approved, overrides = null) => {
+    const payload = { workflow_id: workflowId, approved };
+    if (overrides) payload.overrides = overrides;
+    
+    const response = await apiRequest(`/ai/agent/approve/${workflowId}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return response;
+  },
+
+  getRecentConversation: async () => {
+    const response = await apiRequest('/ai/agent/conversations/recent', {
+      method: 'GET',
+    });
+    return response;
+  },
+
+  getConversationMessages: async (sessionId) => {
+    const response = await apiRequest(`/ai/agent/conversations/${sessionId}/messages`, {
+      method: 'GET',
+    });
+    return response;
+  },
+
+  searchChatHistory: async (query, limit = 10) => {
+    const response = await apiRequest(`/ai/agent/chat/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+      method: 'GET',
+    });
+    return response;
+  },
+
 };

@@ -44,8 +44,8 @@ export interface Task {
   source_template_id?: string;
   source_template_name?: string;
   source_template_task_id?: string;
-  requires_reason?: number | boolean;
-  allows_alternate?: number | boolean;
+  requires_reason?: boolean;
+  allows_alternate?: boolean;
   missed_reason?: string;
   alternate_activity?: string;
 }

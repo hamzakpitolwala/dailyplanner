@@ -17,9 +17,10 @@ interface Task {
 interface PastTemplateViewProps {
   tasks: Task[];
   templates: any[];
+  onDelete?: (id: string) => void;
 }
 
-export const PastTemplateView: FC<PastTemplateViewProps> = ({ tasks, templates }) => {
+export const PastTemplateView: FC<PastTemplateViewProps> = ({ tasks, templates, onDelete }) => {
   // Group tasks by template ID
   const groupedTasks: Record<string, { templateTasks: Task[], manualTasks: Task[] }> = {};
   const globalManualTasks: Task[] = [];
@@ -66,14 +67,14 @@ export const PastTemplateView: FC<PastTemplateViewProps> = ({ tasks, templates }
             
             {templateTasks.length > 0 && (
               <div className="flex flex-col gap-3">
-                {templateTasks.map(t => <PastTaskCard key={t.id} task={t} />)}
+                {templateTasks.map(t => <PastTaskCard key={t.id} task={t} onDelete={onDelete} />)}
               </div>
             )}
 
             {manualTasks.length > 0 && (
               <div className="flex flex-col gap-3 mt-2 pl-4 border-l-2 border-zinc-200">
                 <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-1">Manual Tasks</h3>
-                {manualTasks.map(t => <PastTaskCard key={t.id} task={t} />)}
+                {manualTasks.map(t => <PastTaskCard key={t.id} task={t} onDelete={onDelete} />)}
               </div>
             )}
           </div>
@@ -90,7 +91,7 @@ export const PastTemplateView: FC<PastTemplateViewProps> = ({ tasks, templates }
                 const timeB = b.start_time ? new Date(b.start_time).getTime() : 0;
                 return timeA - timeB;
               })
-              .map(t => <PastTaskCard key={t.id} task={t} />)}
+              .map(t => <PastTaskCard key={t.id} task={t} onDelete={onDelete} />)}
           </div>
         </div>
       )}

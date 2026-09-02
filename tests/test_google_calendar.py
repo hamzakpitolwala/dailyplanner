@@ -11,6 +11,7 @@ from backend.db.models.templates import PlannerTemplate, TemplateTask
 from backend.services.calendar_provider import CalendarProviderFactory, GoogleCalendarAdapter
 from backend.services.integration_service import IntegrationService
 from backend.services.task_service import TaskService
+from backend.services.calendar_sync_manager import CalendarSyncManager
 from backend.services.template_service import TemplateService
 from backend.schemas.core_schema import TaskUpdate, TaskCreate
 
@@ -78,6 +79,7 @@ class TestDailyPlannerCalendarImport:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         integration_service: IntegrationService,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
@@ -96,7 +98,7 @@ class TestDailyPlannerCalendarImport:
         ]
 
         with patch.object(GoogleCalendarAdapter, "fetch_events_for_day", return_value=mock_events):
-            await task_service.sync_google_calendar_for_date(
+            await calendar_sync_manager.sync_google_calendar_for_date(
                 user_id=uuid.UUID(calendar_user.id),
                 target_date="2026-08-10",
             )
@@ -116,6 +118,7 @@ class TestDailyPlannerCalendarImport:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         template_service: TemplateService,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
@@ -135,7 +138,7 @@ class TestDailyPlannerCalendarImport:
         ]
 
         with patch.object(GoogleCalendarAdapter, "fetch_events_for_day", return_value=mock_events):
-            await task_service.sync_google_calendar_for_date(
+            await calendar_sync_manager.sync_google_calendar_for_date(
                 user_id=uuid.UUID(calendar_user.id),
                 target_date="2026-08-10",
             )
@@ -158,6 +161,7 @@ class TestExternalTaskEditAndDelete:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         integration_service: IntegrationService,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
@@ -186,7 +190,7 @@ class TestExternalTaskEditAndDelete:
         await db_session.refresh(task)
 
         with patch.object(GoogleCalendarAdapter, "update_event", return_value={"status": "confirmed"}) as mock_update:
-            updated = await task_service.update_task(
+            updated = await calendar_sync_manager.update_task_with_sync(
                 task, TaskUpdate(title="Updated Meeting Title")
             )
             assert updated.title == "Updated Meeting Title"
@@ -197,6 +201,7 @@ class TestExternalTaskEditAndDelete:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
     ):
@@ -222,7 +227,7 @@ class TestExternalTaskEditAndDelete:
         await db_session.refresh(task)
 
         with patch.object(GoogleCalendarAdapter, "cancel_event") as mock_cancel:
-            await task_service.delete_task(task, delete_in_calendar=False)
+            await calendar_sync_manager.delete_task_with_sync(task, delete_in_calendar=False)
             mock_cancel.assert_not_called()
 
         deleted = await task_service.get_task(uuid.UUID(calendar_user.id), uuid.UUID(task.id))
@@ -234,6 +239,7 @@ class TestExternalTaskEditAndDelete:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
     ):
@@ -259,7 +265,7 @@ class TestExternalTaskEditAndDelete:
         await db_session.refresh(task)
 
         with patch.object(GoogleCalendarAdapter, "cancel_event", return_value=True) as mock_cancel:
-            await task_service.delete_task(task, delete_in_calendar=True)
+            await calendar_sync_manager.delete_task_with_sync(task, delete_in_calendar=True)
             mock_cancel.assert_called_once()
 
         deleted = await task_service.get_task(uuid.UUID(calendar_user.id), uuid.UUID(task.id))
@@ -270,6 +276,7 @@ class TestExternalTaskEditAndDelete:
         self,
         db_session,
         task_service: TaskService,
+        calendar_sync_manager: CalendarSyncManager,
         calendar_user: User,
         connected_user_token: UserOAuthToken,
     ):
@@ -279,7 +286,7 @@ class TestExternalTaskEditAndDelete:
             "status": "confirmed",
         }
         with patch.object(GoogleCalendarAdapter, "create_event", return_value=mock_event_response) as mock_create:
-            task = await task_service.create_task(
+            task = await calendar_sync_manager.create_task_with_sync(
                 uuid.UUID(calendar_user.id),
                 TaskCreate(
                     title="New Google Task",

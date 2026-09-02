@@ -14,7 +14,9 @@ from backend.schemas.ai_engine_schema import AIRecommendationResponse, AIRecomme
 from backend.services.pattern_scanner import PatternScannerService
 from backend.agents.recommendation_agent import RecommendationAgent
 from backend.services.ai_engine_service import AIEngineService
-from backend.api.deps import get_ai_engine_service
+from backend.api.deps import get_ai_engine_service, get_recommendation_agent
+from backend.core.limiter import limiter
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +27,13 @@ router = APIRouter(
 )
 
 @router.post("/generate", response_model=List[AIRecommendationResponse])
+@limiter.limit("10/5minute")
 async def generate_recommendations(
+    request: Request,
     period_days: int = 7,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    agent: RecommendationAgent = Depends(get_recommendation_agent),
 ):
     """Trigger pattern scanning and LLM recommendation generation."""
     logger.info(f"Generating recommendations for user {current_user.id}")
@@ -42,9 +47,12 @@ async def generate_recommendations(
         return []
 
     # 2. Call RecommendationAgent (LLM)
-    agent = RecommendationAgent()
-    # Mocking profile and history for now; in reality, fetch these from DB
-    profile = {"goals": current_user.user_profile.goals if current_user.user_profile else "productivity"}
+    # Fetch profile from DB to avoid lazy-loading MissingGreenlet error
+    from backend.db.models.core import UserProfile
+    profile_result = await db.execute(select(UserProfile).where(UserProfile.user_id == str(current_user.id)))
+    user_profile = profile_result.scalar_one_or_none()
+    
+    profile = {"goals": user_profile.goals if user_profile else "productivity"}
     history = {"recent_completion_rate": "75%"}
     
     llm_recs = await agent.generate_recommendations(profile, history, patterns)
@@ -68,8 +76,11 @@ async def generate_recommendations(
         saved_recs.append(new_rec)
         
     await db.commit()
-    for rec in saved_recs:
-        await db.refresh(rec)
+    
+    if saved_recs:
+        rec_ids = [str(r.id) for r in saved_recs]
+        result = await db.execute(select(AIRecommendation).where(AIRecommendation.id.in_(rec_ids)))
+        saved_recs = list(result.scalars().all())
         
     logger.info(f"Generated {len(saved_recs)} pending recommendations")
     return saved_recs
@@ -92,7 +103,9 @@ async def get_recommendations(
 
 
 @router.post("/{rec_id}/decision", response_model=RecommendationOutcomeResponse)
+@limiter.limit("10/5minute")
 async def process_decision(
+    request: Request,
     rec_id: UUID,
     decision_in: AIRecommendationUpdate,
     db: AsyncSession = Depends(get_db),

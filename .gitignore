@@ -1,6 +1,7 @@
 # Environment & secrets
 .env
 *.db
+Docs
 
 # Python
 __pycache__/

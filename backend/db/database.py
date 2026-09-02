@@ -29,8 +29,10 @@ if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
 elif db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-elif db_url.startswith("sqlite://"):
-    db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+elif db_url.startswith("sqlite"):
+    import os
+    if os.environ.get("TESTING") != "1":
+        raise RuntimeError("SQLite is no longer supported for the Multi-Agent system. Please use PostgreSQL.")
 
 if "?" in db_url:
     db_url = db_url.split("?")[0]
@@ -41,21 +43,17 @@ if db_url.startswith("postgresql+asyncpg"):
     _connect_args["statement_cache_size"] = 0
     _connect_args["prepared_statement_cache_size"] = 0
 
+from sqlalchemy.pool import NullPool
+
 _pool_kwargs: dict = {
-    "pool_pre_ping": True,
+    "poolclass": NullPool,
 }
 
 if db_url.startswith("sqlite"):
     pass
 else:
-    # Neon Postgres aggressively closes idle SSL connections.
-    # Keep the pool small and recycle connections frequently.
-    _pool_kwargs.update(
-        pool_size=5,
-        max_overflow=5,
-        pool_recycle=120,
-        pool_timeout=30,
-    )
+    # NullPool handles Neon's aggressive idle connection closing by not pooling.
+    pass
 
 engine = create_async_engine(
     db_url,

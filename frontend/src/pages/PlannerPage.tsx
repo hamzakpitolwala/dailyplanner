@@ -6,8 +6,11 @@ import {
   updateTask,
   deleteTask,
   postTaskCheckin,
-  fetchEarliestTaskDate
+  fetchEarliestTaskDate,
+  fetchMissedCheckins,
 } from '../api/taskApi';
+import { fetchTemplateById } from '../api/templateApi';
+import { syncGoogleCalendar } from '../api/integrationApi';
 import { PlannerTimeline } from '../components/Planner/PlannerTimeline';
 import { TaskForm } from '../components/Planner/TaskForm';
 import { MissedCheckinsModal } from '../components/Planner/MissedCheckinsModal';
@@ -61,6 +64,7 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
 
   const [editingTaskData, setEditingTaskData] = useState<any>(emptyTask);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [activePlanner, setActivePlanner] = useState<PlannerTemplate | null>(null);
 
@@ -103,13 +107,8 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
 
     if (!profile?.active_planner_id) return;
     try {
-      const res = await fetch(`/templates/${profile.active_planner_id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setActivePlanner(data);
-      }
+      const data = await fetchTemplateById(profile.active_planner_id);
+      setActivePlanner(data);
     } catch (err) {
       console.error(err);
     }
@@ -133,22 +132,10 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
 
       // Trigger background Google Calendar sync
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const tzOffset = new Date().getTimezoneOffset();
-          fetch(`/integrations/google/calendar/sync?target_date=${plannerDate}&tz_offset=${tzOffset}`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).then(res => {
-            if (res.ok) {
-              res.json().then(syncedTasks => {
-                setTasks(syncedTasks);
-              });
-            }
-          });
-        }
+        const syncedTasks = await syncGoogleCalendar(plannerDate);
+        if (syncedTasks) setTasks(syncedTasks);
       } catch (err) {
-        console.error("Background calendar sync failed:", err);
+        console.error('Background calendar sync failed:', err);
       }
     };
 
@@ -161,21 +148,42 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
   }, [plannerDate, profile?.active_planner_id]);
 
   useEffect(() => {
+    const handleHighlight = (e: any) => {
+      const templateTaskId = e.detail.taskId;
+      // Find task instantiated from this template task
+      const targetTask = tasks.find(t => t.source_template_task_id === templateTaskId || t.id === templateTaskId);
+      if (targetTask) {
+        setHighlightedTaskId(targetTask.id);
+        
+        // Find DOM element and scroll
+        setTimeout(() => {
+          const el = document.getElementById(`task-card-${targetTask.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+          setHighlightedTaskId(null);
+        }, 3000);
+      }
+    };
+    
+    window.addEventListener('HIGHLIGHT_TEMPLATE_TASK', handleHighlight);
+    return () => window.removeEventListener('HIGHLIGHT_TEMPLATE_TASK', handleHighlight);
+  }, [tasks]);
+
+  useEffect(() => {
     loadPlanner();
   }, [profile?.active_planner_id]);
 
   useEffect(() => {
     const checkMissed = async () => {
       try {
-        const tzOffset = new Date().getTimezoneOffset();
-        const res = await fetch(`/tasks/missed-checkins?tz_offset=${tzOffset}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setMissedTasks(data);
-          }
+        const data = await fetchMissedCheckins();
+        if (data && data.length > 0) {
+          setMissedTasks(data);
         }
       } catch (err) {
         console.error(err);
@@ -235,23 +243,33 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
     }
   };
 
+  /** Task ID of the regular (non-calendar) task pending confirmation to delete */
+  const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
   const [deleteTargetTask, setDeleteTargetTask] = useState<Task | null>(null);
 
   const handleDeleteTask = async (taskId: string) => {
     const taskToDelete = tasks.find((t) => t.id === taskId);
-    if (taskToDelete && taskToDelete.source === 'calendar') {
+    if (taskToDelete?.source === 'calendar') {
       setDeleteTargetTask(taskToDelete);
       return;
     }
+    // Show in-app confirmation instead of window.confirm
+    setConfirmDeleteTaskId(taskId);
+  };
 
+  const confirmDeleteRegularTask = async () => {
+    if (!confirmDeleteTaskId) return;
     try {
-      await deleteTask(taskId, false);
+      await deleteTask(confirmDeleteTaskId, false);
       setMessage('Task deleted');
       await loadTasks();
     } catch (error: any) {
       setMessage(error.message);
+    } finally {
+      setConfirmDeleteTaskId(null);
     }
   };
+
 
   const confirmDeleteExternalTask = async (deleteInCalendar: boolean) => {
     if (!deleteTargetTask) return;
@@ -392,7 +410,34 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
         </div>
       )}
 
-      {/* Delete External Task Modal */}
+      {/* Confirm Delete Regular Task Modal */}
+      {confirmDeleteTaskId && (
+        <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 border border-zinc-200 dark:border-zinc-700">
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Delete Task?</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Deleting a task can impact AI suggestions, recommendations, and analytics accuracy.
+              This action cannot be undone.
+            </p>
+            <div className="flex gap-2.5 justify-end pt-2">
+              <button
+                onClick={() => setConfirmDeleteTaskId(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteRegularTask}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+              >
+                Delete Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {deleteTargetTask && (
         <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
           <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5 border border-zinc-200 dark:border-zinc-700">
@@ -430,7 +475,7 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
       <section className="flex-1 overflow-hidden relative px-6 pb-6">
         <div className="absolute inset-0 bg-card shadow-sm border border-border m-6 mt-0 rounded-2xl overflow-hidden flex flex-col">
           {plannerDate < todayIso() ? (
-            <PastTemplateView tasks={tasks} templates={templates} />
+            <PastTemplateView tasks={tasks} templates={templates} onDelete={handleDeleteTask} />
           ) : (
             <PlannerTimeline
               tasks={tasks}
@@ -440,6 +485,7 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
               deleteTask={handleDeleteTask}
               onCheckin={handleCheckin}
               onAddToTemplate={handleAddToTemplate}
+              highlightedTaskId={highlightedTaskId}
               setMessage={setMessage}
             />
           )}

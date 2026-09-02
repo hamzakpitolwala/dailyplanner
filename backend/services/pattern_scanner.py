@@ -51,7 +51,7 @@ class RepeatedMissesRule(PatternRule):
         missed_tasks = result.all()
         
         # Dictionary to count misses by title/time
-        miss_counts = {}
+        miss_counts: Dict[str, Dict[str, Any]] = {}
         for task, checkin in missed_tasks:
             key = f"{task.title}_{task.start_time.hour if task.start_time else 'none'}"
             if key not in miss_counts:

@@ -2,7 +2,7 @@ import { useState, memo, type FC } from 'react';
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Trash2, MoreVertical, Plus, BookmarkPlus, Calendar } from 'lucide-react';
-import { cn, getStatusColor, getPriorityLabel, timeToPixels, calculateDurationPixels } from './TimelineUtils';
+import { cn, getStatusColor, getPriorityLabel, timeToPixels, calculateDurationPixels, formatIsoTime } from './TimelineUtils';
 import { TaskCheckinModal } from './TaskCheckinModal';
 import { TASK_STATUSES } from '../../utils/constants';
 
@@ -15,6 +15,7 @@ interface TimelineTaskCardProps {
   onDelete: (taskId: string) => void;
   onCheckin: (taskId: string, data: any) => void;
   onAddToTemplate?: (task: Task) => void;
+  isHighlighted?: boolean;
   isSubtask?: boolean;
   tasks?: Task[];
   plannerDate?: string;
@@ -43,27 +44,27 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
 
   const [isHovered, setIsHovered] = useState(false);
 
-  const formatTime = (isoString?: string) => {
-    if (!isoString) return '';
-    return new Date(isoString).toTimeString().substring(0, 5);
-  };
-
   const [activeCheckinStatus, setActiveCheckinStatus] = useState<string | null>(null);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
 
   const localToday = new Date().toLocaleDateString('en-CA');
   const taskDate = task.due_date ? task.due_date.split('T')[0] : '';
   const isPastDate = taskDate && taskDate < localToday;
-  // Terminal state no longer locks the UI, users can always toggle
-  const isTerminalState = false;
+  const isTerminalState =
+    Boolean(isPastDate) ||
+    task.status === 'done' ||
+    task.status === 'not_done' ||
+    task.status === 'pending_not_done' ||
+    task.status === 'partial_not_done';
   const isRescheduleDisabled = task.due_date ? new Date(task.due_date) < new Date() : false;
 
   const handleStatusClick = (newStatus: string) => {
+    if (isTerminalState) return;
 
     if (newStatus === 'rescheduled') {
       if (isRescheduleDisabled) return;
       setActiveCheckinStatus(newStatus);
-    } else if (newStatus === 'not_done' && (task.requires_reason === 1 || task.allows_alternate === 1)) {
+    } else if (newStatus === 'not_done' && (Boolean(task.requires_reason) || Boolean(task.allows_alternate))) {
       setActiveCheckinStatus(newStatus);
     } else {
       onCheckin(task.id, { status: newStatus });
@@ -114,14 +115,14 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
           {height > 60 && task.description && (
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{task.description}</p>
           )}
-          {task.status === 'not_done' && (task.requires_reason === 1 || task.allows_alternate === 1) && (
+          {task.status === 'not_done' && (Boolean(task.requires_reason) || Boolean(task.allows_alternate)) && (
             <div className="flex flex-col gap-1 mt-1">
-              {task.requires_reason === 1 && (
+              {Boolean(task.requires_reason) && (
                 <span className="text-[10px] text-red-700 dark:text-red-300 bg-red-100/50 dark:bg-red-900/30 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800">
                   Required Reason: {task.missed_reason || 'Pending...'}
                 </span>
               )}
-              {task.allows_alternate === 1 && (
+              {Boolean(task.allows_alternate) && (
                 <span className="text-[10px] text-purple-700 dark:text-purple-300 bg-purple-100/50 dark:bg-purple-900/30 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
                   Alternate: {task.alternate_activity || 'None'}
                 </span>
@@ -248,33 +249,24 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
-                {(!task.source_template_name && !task.source_template_task_id) && (
-                  <>
-                    {onAddToTemplate && (
-                      <button
-                        onClick={() => onAddToTemplate(task)}
-                        className="p-1 hover:bg-zinc-100 rounded text-amber-600 transition-colors"
-                        title="Add to Active Template"
-                      >
-                        <BookmarkPlus className="w-4 h-4" />
-                      </button>
-                    )}
+                <>
+                  {onAddToTemplate && !task.source_template_name && !task.source_template_task_id && (
                     <button
-                      onClick={() => onEdit(task)}
-                      className="p-1 hover:bg-zinc-100 rounded text-zinc-600 transition-colors"
-                      title="Edit"
+                      onClick={() => onAddToTemplate(task)}
+                      className="p-1 hover:bg-zinc-100 rounded text-amber-600 transition-colors"
+                      title="Add to Active Template"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <BookmarkPlus className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => onDelete(task.id)}
-                      className="p-1 hover:bg-zinc-100 rounded text-black transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
+                  )}
+                  <button
+                    onClick={() => onEdit(task)}
+                    className="p-1 hover:bg-zinc-100 rounded text-zinc-600 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </>
               </motion.div>
             )}
           </AnimatePresence>
@@ -318,7 +310,7 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
 
       <div className="mt-auto pt-2 flex items-center justify-between text-xs">
         <span className="text-zinc-500 font-medium bg-zinc-50 px-2 py-0.5 rounded-md">
-          {formatTime(task.start_time)} - {formatTime(task.due_date)}
+          {formatIsoTime(task.start_time)} - {formatIsoTime(task.due_date)}
         </span>
         <span className={cn("px-2 py-0.5 rounded-full font-medium border", getStatusColor(task.status))}>
           {task.status?.replace(/_/g, ' ') || 'Pending'}

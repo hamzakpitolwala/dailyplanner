@@ -113,8 +113,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
     setShowTaskForm(true);
   };
 
-  const submitTask = async (event) => {
-    event.preventDefault();
+  const submitTask = async (submittedData) => {
     try {
       const parseTime = (str) => {
         if (!str) return 0;
@@ -122,17 +121,19 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
         return h * 60 + m;
       };
       
-      const duration = taskForm.start_time && taskForm.end_time 
-        ? (parseTime(taskForm.end_time) - parseTime(taskForm.start_time)) 
+      const duration = submittedData.start_time && submittedData.end_time 
+        ? (parseTime(submittedData.end_time) - parseTime(submittedData.start_time)) 
         : 60;
 
       const payload = {
-        title: taskForm.title,
-        description: taskForm.description,
-        target_time: taskForm.start_time ? `${taskForm.start_time}:00` : null,
+        title: submittedData.title,
+        description: submittedData.description,
+        target_time: submittedData.start_time ? `${submittedData.start_time}:00` : null,
         duration_minutes: duration,
-        priority: taskForm.priority || 1,
-        subtasks: taskForm.subtasks || []
+        priority: submittedData.priority || 1,
+        subtasks: submittedData.subtasks || [],
+        requires_reason: submittedData.requires_reason || false,
+        allows_alternate: submittedData.allows_alternate || false
       };
 
       if (editingTaskId) {
@@ -229,11 +230,8 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
       {showTaskForm && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
-            <h3 style={{ marginTop: 0 }}>Add Task to Template</h3>
               <TaskForm
-                taskForm={taskForm}
-                setTaskForm={setTaskForm}
-                editingTaskId={editingTaskId}
+                initialTask={{ ...taskForm, id: editingTaskId }}
                 onSubmit={submitTask}
                 onCancel={() => setShowTaskForm(false)}
                 isTemplateMode={true}

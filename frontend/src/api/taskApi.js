@@ -7,9 +7,9 @@ export const fetchTasks = async (targetDate) => {
     const tzOffset = new Date().getTimezoneOffset();
     url += `?target_date=${targetDate}&tz_offset=${tzOffset}`;
   }
-  console.log("Fetching tasks for URL:", url);
   return await apiRequest(url);
 };
+
 
 export const fetchEarliestTaskDate = async () => {
   return await apiRequest(`${TASKS_BASE}/earliest-date`);
@@ -71,3 +71,9 @@ export const deleteSubtask = async (taskId, subtaskId) => {
     method: 'DELETE',
   });
 };
+
+export const fetchMissedCheckins = async () => {
+  const tzOffset = new Date().getTimezoneOffset();
+  return await apiRequest(`${TASKS_BASE}/missed-checkins?tz_offset=${tzOffset}`);
+};
+

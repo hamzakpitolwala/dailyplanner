@@ -1,19 +1,20 @@
 import { type FC } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, Calendar, Columns3, Search } from 'lucide-react';
+import { LayoutDashboard, Calendar, Search, History } from 'lucide-react';
 import { cn } from '../../components/Planner/TimelineUtils';
 import { ThemeToggle } from '../ThemeToggle';
 
 interface TopNavbarProps {
-  activeView: 'planner' | 'dashboard';
-  setActiveView: (view: 'planner' | 'dashboard') => void;
+  activeView: 'planner' | 'dashboard' | 'history';
+  setActiveView: (view: 'planner' | 'dashboard' | 'history') => void;
 }
 
 export const TopNavbar: FC<TopNavbarProps> = ({ activeView, setActiveView }) => {
   const tabs = [
     { id: 'dailyplanner', label: 'DailyPlanner', icon: <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 shadow-[0_4px_12px_rgba(249,115,22,0.4)] border border-orange-300/30 overflow-hidden relative group-hover:shadow-[0_4px_16px_rgba(249,115,22,0.6)] transition-all duration-300"><div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div><img src="/logo.png" alt="DailyPlanner Logo" className="w-7 h-7 object-contain drop-shadow-md z-10 transform group-hover:scale-105 transition-transform duration-300 relative" /></div>, disabled: false },
     { id: 'planner', label: 'Planner', icon: <Calendar className="w-5 h-5" />, disabled: false },
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, disabled: false }
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" />, disabled: false },
+    { id: 'history', label: 'History', icon: <History className="w-5 h-5" />, disabled: false }
   ];
 
   return (
@@ -27,7 +28,7 @@ export const TopNavbar: FC<TopNavbarProps> = ({ activeView, setActiveView }) => 
               if (tab.id === 'dailyplanner') {
                 setActiveView('planner');
               } else {
-                setActiveView(tab.id as 'planner' | 'dashboard');
+                setActiveView(tab.id as any);
               }
             }}
             className={cn(

@@ -52,13 +52,7 @@ def verify_oauth_state(state: str, max_age_seconds: int = 600) -> str | None:
         return None
     parts = state.split(":")
     if len(parts) != 3:
-        # Fallback for plain user_id format if valid UUID
-        try:
-            import uuid
-            uuid.UUID(state)
-            return state
-        except ValueError:
-            return None
+        return None
 
     user_id, timestamp_str, sig = parts
     try:

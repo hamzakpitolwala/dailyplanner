@@ -26,7 +26,9 @@ class LLMRecommendationResponse(BaseModel):
 class RecommendationAgent:
     """Agent that interacts with LLM to generate recommendations and make execution decisions."""
     
-    def __init__(self, model_name: str = "llama3.1"):
+    def __init__(self, model_name: str = "qwen2.5:7b"):
+        # We use a relatively high temperature (0.7) for creative recommendations
+
         self.model_name = model_name
         self.ollama_url = "http://localhost:11434/api/generate"
 

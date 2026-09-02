@@ -14,3 +14,4 @@ from backend.db.models.integrations import ExternalSyncedEvent, UserOAuthToken  
 
 # AI engine models
 from backend.db.models.ai_engine import AIRecommendation  # noqa: F401
+from backend.db.models.agent import WorkflowRun, ConversationSession, ConversationMessage, Memory, AuditEvent  # noqa: F401

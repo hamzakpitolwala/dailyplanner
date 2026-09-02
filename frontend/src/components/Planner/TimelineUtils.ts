@@ -5,6 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Shared scale: 2 pixels per minute → 24-hour canvas is 2 880px tall */
+export const PIXELS_PER_MINUTE = 2;
+
 export function parseTimeToMinutes(timeString: string | null | undefined): number {
   if (!timeString) return 0;
   // Handle formats like "YYYY-MM-DDTHH:MM:SS" or "HH:MM:SS" or "HH:MM"
@@ -16,7 +19,7 @@ export function parseTimeToMinutes(timeString: string | null | undefined): numbe
   return (h || 0) * 60 + (m || 0);
 }
 
-export function timeToPixels(timeString: string | null | undefined, pixelsPerMinute = 2): number {
+export function timeToPixels(timeString: string | null | undefined, pixelsPerMinute = PIXELS_PER_MINUTE): number {
   return parseTimeToMinutes(timeString) * pixelsPerMinute;
 }
 
@@ -26,8 +29,17 @@ export function calculateDurationMinutes(startTime: string, endTime: string): nu
   return Math.max(0, end - start);
 }
 
-export function calculateDurationPixels(startTime: string, endTime: string, pixelsPerMinute = 2): number {
+export function calculateDurationPixels(startTime: string, endTime: string, pixelsPerMinute = PIXELS_PER_MINUTE): number {
   return calculateDurationMinutes(startTime, endTime) * pixelsPerMinute;
+}
+
+/**
+ * Format an ISO datetime string to "HH:MM" in local time.
+ * Returns an empty string for falsy input.
+ */
+export function formatIsoTime(isoString?: string | null): string {
+  if (!isoString) return '';
+  return new Date(isoString).toTimeString().substring(0, 5);
 }
 
 export function getStatusColor(status: string) {

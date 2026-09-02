@@ -88,7 +88,12 @@ class TaskRepository(BaseRepository[Task]):
     async def get_task(self, user_id: UUID, task_id: UUID) -> Task | None:
         result = await self.db.execute(
             select(Task)
-            .options(selectinload(Task.category), selectinload(Task.subtasks), selectinload(Task.checkins))
+            .options(
+                selectinload(Task.category),
+                selectinload(Task.subtasks),
+                selectinload(Task.checkins).selectinload(TaskCheckin.missed_reason),
+                selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity)
+            )
             .filter(Task.id == str(task_id), Task.user_id == str(user_id))
         )
         return result.scalars().first()

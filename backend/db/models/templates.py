@@ -4,7 +4,7 @@ Portable types only (no JSONB/UUID) for SQLite / CI compatibility.
 """
 
 import uuid
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, Time
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String, Text, Time, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -17,6 +17,9 @@ def _uuid() -> str:
 
 class PlannerTemplate(Base):
     __tablename__ = "planner_templates"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'name', name='uq_planner_template_user_name'),
+    )
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
     user_id = Column(
@@ -60,6 +63,8 @@ class TemplateTask(Base):
     duration_minutes = Column(Integer, server_default="60", nullable=False)
     checklist = Column(JSON, server_default="[]", nullable=False)
     subtasks = Column(JSON, server_default="[]", nullable=False)
+    requires_reason = Column(Boolean, server_default="0", nullable=False)
+    allows_alternate = Column(Boolean, server_default="0", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships

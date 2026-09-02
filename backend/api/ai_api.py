@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from backend.api.deps import get_ai_engine_service, get_user_service, get_fixed_block_repository, get_task_service
+from backend.api.deps import get_ai_engine_service, get_user_service, get_fixed_block_repository, get_task_service, get_chat_agent
 from backend.services.ai_engine_service import AIEngineService
 from backend.services.user_service import UserService
 from backend.services.task_service import TaskService
@@ -11,17 +11,19 @@ from backend.db.repositories.fixed_block import FixedBlockRepository
 from backend.schemas.ai_engine_schema import StarterPlanner, PlannerSummaryResponse, ChatRequest, ChatResponse
 from backend.api.auth_api import get_current_user
 from backend.agents.chat_agent import PersonalizedChatAgent
+from backend.core.limiter import limiter
+from fastapi import Request
 
 router = APIRouter(prefix="/ai", tags=["AI Engine"])
-
-chat_agent = PersonalizedChatAgent()
 
 class StarterPlanRequest(BaseModel):
     day_type: str = "generic"
     extra_prompt: str = ""
 
 @router.post("/generate-starter-plan", response_model=StarterPlanner)
+@limiter.limit("10/5minute")
 async def generate_starter_plan(
+    request: Request,
     req: StarterPlanRequest,
     current_user = Depends(get_current_user),
     ai_service: AIEngineService = Depends(get_ai_engine_service),
@@ -51,7 +53,9 @@ class SummaryRequest(BaseModel):
     extra_prompt: str = ""
 
 @router.post("/daily-summary", response_model=PlannerSummaryResponse)
+@limiter.limit("10/5minute")
 async def generate_summary(
+    request: Request,
     req: SummaryRequest,
     current_user = Depends(get_current_user),
     ai_service: AIEngineService = Depends(get_ai_engine_service),
@@ -65,12 +69,15 @@ async def generate_summary(
     )
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit("10/5minute")
 async def chat(
+    request: Request,
     req: ChatRequest,
     current_user = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service),
     task_service: TaskService = Depends(get_task_service),
     fixed_block_repo: FixedBlockRepository = Depends(get_fixed_block_repository),
+    chat_agent: PersonalizedChatAgent = Depends(get_chat_agent),
 ):
     reply, s_type, s_data = await chat_agent.chat(
         user_id=current_user.id,

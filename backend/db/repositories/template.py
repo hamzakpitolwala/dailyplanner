@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from backend.db.models.templates import PlannerTemplate, TemplateTask
 from backend.db.models.core import Task
@@ -29,6 +29,17 @@ class TemplateRepository(BaseRepository[PlannerTemplate]):
             .filter(
                 PlannerTemplate.id == str(template_id),
                 PlannerTemplate.user_id == str(user_id),
+            )
+        )
+        return result.scalars().first()
+
+    async def get_template_by_name(self, user_id: UUID, name: str) -> PlannerTemplate | None:
+        result = await self.db.execute(
+            select(PlannerTemplate)
+            .options(selectinload(PlannerTemplate.template_tasks))
+            .filter(
+                func.lower(PlannerTemplate.name) == func.lower(name),
+                PlannerTemplate.user_id == str(user_id)
             )
         )
         return result.scalars().first()

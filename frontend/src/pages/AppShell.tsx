@@ -7,6 +7,7 @@ import { MainLayout } from '../components/Layout/MainLayout';
 
 const PlannerPage = lazy(() => import('./PlannerPage').then(m => ({ default: m.PlannerPage })));
 const DashboardPage = lazy(() => import('./DashboardPage').then(m => ({ default: m.DashboardPage })));
+const HistoryPage = lazy(() => import('./HistoryPage').then(m => ({ default: m.HistoryPage })));
 const UserProfilePage = lazy(() => import('./UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 const ManageTemplatePage = lazy(() => import('./ManageTemplatePage').then(m => ({ default: m.ManageTemplatePage })));
 
@@ -20,12 +21,12 @@ export const AppShell = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Active top navigation tab (templates view is an overlay state)
-  const [activeView, setActiveView] = useState<'planner' | 'dashboard'>('planner');
+  const [activeView, setActiveView] = useState<'planner' | 'dashboard' | 'history'>('planner');
 
   useEffect(() => {
     // Sync appView and activeView when navigating
-    if (appView === 'planner' || appView === 'dashboard') {
-      setActiveView(appView as 'planner' | 'dashboard');
+    if (appView === 'planner' || appView === 'dashboard' || appView === 'history') {
+      setActiveView(appView as 'planner' | 'dashboard' | 'history');
     }
   }, [appView]);
 
@@ -81,6 +82,10 @@ export const AppShell = () => {
           
           {appView === 'dashboard' && (
             <DashboardPage />
+          )}
+
+          {appView === 'history' && (
+            <HistoryPage />
           )}
 
           {appView === 'templates' && (

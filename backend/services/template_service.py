@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from backend.db.models.core import Task, ActivitySubtask
+from backend.db.models.core import Task, ActivitySubtask, TaskCheckin
 from backend.db.models.templates import PlannerTemplate, TemplateTask
 from backend.schemas.template_schema import (
     PlannerTemplateCreate,
@@ -39,6 +39,9 @@ class TemplateService:
 
     async def get_template(self, user_id: UUID, template_id: UUID) -> PlannerTemplate | None:
         return await self.template_repo.get_template(user_id, template_id)
+
+    async def get_template_by_name(self, user_id: UUID, name: str) -> PlannerTemplate | None:
+        return await self.template_repo.get_template_by_name(user_id, name)
 
     async def create_template(
         self, user_id: UUID, data: PlannerTemplateCreate
@@ -74,6 +77,10 @@ class TemplateService:
         for t in stale_tasks:
             await self.task_repo.db.delete(t)
             deleted_any = True
+            
+        if deleted_any:
+            await self.task_repo.db.flush()
+            
         return deleted_any
 
     def _parse_target_time(self, target_time: object) -> tuple[int, int, int]:
@@ -106,7 +113,7 @@ class TemplateService:
         
         for s_title, subtask in concrete_subs.items():
             if s_title not in tmpl_sub_titles and subtask.is_template_subtask == 1:
-                await self.template_repo.db.delete(subtask)
+                self.template_repo.db.delete(subtask)
                 changes_made = True
                 
         return changes_made
@@ -130,7 +137,12 @@ class TemplateService:
 
         stale_cleaned = await self._clean_stale_tasks(user_id, template_id, start_of_day, end_of_day)
         
-        result = await self.template_repo.db.execute(select(Task).options(selectinload(Task.subtasks)).filter(
+        result = await self.template_repo.db.execute(select(Task).options(
+            selectinload(Task.subtasks),
+            selectinload(Task.checkins).selectinload(TaskCheckin.missed_reason),
+            selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity),
+            selectinload(Task.category)
+        ).filter(
             Task.user_id == str(user_id),
             (Task.source_template_id == str(template.id)) | (Task.source_template_id.is_(None)),
             Task.due_date >= start_of_day,
@@ -183,14 +195,26 @@ class TemplateService:
                 task = existing_by_title[tmpl_task.title].pop(0)
                 task.source_template_task_id = str(tmpl_task.id)
                 task.source_template_id = str(template.id)
+                changes_made = True
 
             if task:
                 if task.status == "pending":
-                    task.title = tmpl_task.title
-                    task.description = tmpl_task.description
-                    task.priority = tmpl_task.priority
-                    task.checklist = tmpl_task.checklist
-                    task.source_template_name = template.name
+                    if (task.title != tmpl_task.title or 
+                        task.description != tmpl_task.description or 
+                        task.priority != tmpl_task.priority or 
+                        task.checklist != tmpl_task.checklist or
+                        task.requires_reason != (1 if tmpl_task.requires_reason else 0) or
+                        task.allows_alternate != (1 if tmpl_task.allows_alternate else 0) or
+                        task.source_template_name != template.name):
+                        
+                        task.title = tmpl_task.title
+                        task.description = tmpl_task.description
+                        task.priority = tmpl_task.priority
+                        task.checklist = tmpl_task.checklist
+                        task.source_template_name = template.name
+                        task.requires_reason = 1 if tmpl_task.requires_reason else 0
+                        task.allows_alternate = 1 if tmpl_task.allows_alternate else 0
+                        changes_made = True
                     
                     if tmpl_task.target_time is not None:
                         if task.start_time != calculated_start:
@@ -218,6 +242,8 @@ class TemplateService:
                     source_template_name=template.name,
                     start_time=calculated_start,
                     due_date=calculated_due,
+                    requires_reason=int(tmpl_task.requires_reason) if tmpl_task.requires_reason else 0,
+                    allows_alternate=int(tmpl_task.allows_alternate) if tmpl_task.allows_alternate else 0,
                 )
                 self.template_repo.db.add(task)
                 await self.template_repo.db.flush()
@@ -244,7 +270,13 @@ class TemplateService:
             return synced_tasks
             
         task_ids = [str(t.id) for t in synced_tasks]
-        result = await self.template_repo.db.execute(select(Task).options(selectinload(Task.subtasks), selectinload(Task.category), selectinload(Task.checkins)).filter(Task.id.in_(task_ids)))
+        result = await self.template_repo.db.execute(
+            select(Task).options(
+                selectinload(Task.subtasks), 
+                selectinload(Task.category), 
+                selectinload(Task.checkins)
+            ).filter(Task.id.in_(task_ids)).execution_options(populate_existing=True)
+        )
         return list(result.scalars().all())
 
     # ------------------------------------------------------------------

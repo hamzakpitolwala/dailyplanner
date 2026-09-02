@@ -16,7 +16,7 @@ class PlannerState(TypedDict):
     error: Optional[str]
 
 async def generate_plan(state: PlannerState) -> dict:
-    llm = ChatOllama(model="llama3.1", temperature=0)
+    llm = ChatOllama(model="qwen2.5:7b", temperature=0)
     structured_llm = llm.with_structured_output(StarterPlanner)
 
     system_prompt = """You are an assistant that designs a structured daily planner template."""
