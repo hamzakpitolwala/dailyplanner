@@ -7,6 +7,7 @@ from backend.schemas.ai_engine_schema import StarterPlanner
 from backend.db.models.core import UserProfile, FixedBlock
 
 class PlannerState(TypedDict):
+    """Plannerstate."""
     user_profile: UserProfile
     fixed_blocks: List[FixedBlock]
     calendar_events: List[Any]
@@ -16,6 +17,7 @@ class PlannerState(TypedDict):
     error: Optional[str]
 
 async def generate_plan(state: PlannerState) -> dict:
+    """Generate plan."""
     llm = ChatOllama(model="qwen2.5:7b", temperature=0)
     structured_llm = llm.with_structured_output(StarterPlanner)
 
@@ -64,6 +66,7 @@ Constraints:
         return {"planner": None, "error": str(e)}
 
 def build_starter_planner_graph():
+    """Build starter planner graph."""
     workflow = StateGraph(PlannerState)
     workflow.add_node("generate_plan", generate_plan)
     workflow.add_edge(START, "generate_plan")

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from backend.db.database import engine
 
 async def migrate():
+    """Migrate."""
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE user_profiles ADD COLUMN username VARCHAR(255);"))

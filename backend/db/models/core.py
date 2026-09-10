@@ -14,10 +14,12 @@ from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
+    """ uuid."""
     return str(uuid.uuid4())
 
 
 class User(Base):
+    """User."""
     __tablename__ = "users"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -60,6 +62,7 @@ class User(Base):
 
 
 class Category(Base):
+    """Category."""
     __tablename__ = "categories"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -79,6 +82,7 @@ class Category(Base):
 
 
 class Task(Base):
+    """Task."""
     __tablename__ = "tasks"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -136,6 +140,7 @@ class Task(Base):
 
 
 class ActivitySubtask(Base):
+    """Activitysubtask."""
     __tablename__ = "activity_subtasks"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -162,6 +167,7 @@ class ActivitySubtask(Base):
 
 
 class MissedReason(Base):
+    """Missedreason."""
     __tablename__ = "missed_reasons"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -175,6 +181,7 @@ class MissedReason(Base):
 
 
 class AlternateActivity(Base):
+    """Alternateactivity."""
     __tablename__ = "alternate_activities"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -188,6 +195,7 @@ class AlternateActivity(Base):
 
 
 class TaskCheckin(Base):
+    """Taskcheckin."""
     __tablename__ = "task_checkins"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -218,6 +226,7 @@ class TaskCheckin(Base):
 
 
 class UserProfile(Base):
+    """Userprofile."""
     __tablename__ = "user_profiles"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -262,6 +271,7 @@ class UserProfile(Base):
 
 
 class FixedBlock(Base):
+    """Fixedblock."""
     __tablename__ = "fixed_blocks"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -275,12 +285,15 @@ class FixedBlock(Base):
     start_time = Column(String(5), nullable=False)  # "HH:MM"
     end_time = Column(String(5), nullable=False)    # "HH:MM"
     days_of_week = Column(JSON, nullable=False)     # e.g., [1, 2, 3, 4, 5]
+    apply_all = Column(Integer, server_default="1", nullable=False)
+    template_ids = Column(JSON, nullable=False, server_default="'[]'")
 
     # Relationships
     user = relationship("User", back_populates="fixed_blocks")
 
 
 class MonitoringSession(Base):
+    """Monitoringsession."""
     __tablename__ = "monitoring_sessions"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -302,6 +315,7 @@ class MonitoringSession(Base):
 
 
 class ScreenEvent(Base):
+    """Screenevent."""
     __tablename__ = "screen_events"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -319,6 +333,7 @@ class ScreenEvent(Base):
 
 
 class FeatureFlag(Base):
+    """Featureflag."""
     __tablename__ = "feature_flags"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)

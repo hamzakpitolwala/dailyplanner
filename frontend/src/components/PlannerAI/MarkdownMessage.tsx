@@ -20,6 +20,9 @@ export const MarkdownMessage: FC<MarkdownMessageProps> = ({ content }) => {
   );
 };
 
+/**
+ * Render Markdown.
+ */
 function renderMarkdown(md: string): string {
   const lines = md.split('\n');
   const result: string[] = [];
@@ -98,6 +101,9 @@ function renderMarkdown(md: string): string {
   closeList();
   return result.join('\n');
 
+  /**
+   * Close List.
+   */
   function closeList() {
     if (inList) {
       result.push(listType === 'ol' ? '</ol>' : '</ul>');
@@ -107,6 +113,9 @@ function renderMarkdown(md: string): string {
   }
 }
 
+/**
+ * Inline Format.
+ */
 function inlineFormat(text: string): string {
   // Bold + italic
   text = text.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');

@@ -12,10 +12,12 @@ from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
+    """ uuid."""
     return str(uuid.uuid4())
 
 
 class PlannerTemplate(Base):
+    """Plannertemplate."""
     __tablename__ = "planner_templates"
     __table_args__ = (
         UniqueConstraint('user_id', 'name', name='uq_planner_template_user_name'),
@@ -45,6 +47,7 @@ class PlannerTemplate(Base):
 
 
 class TemplateTask(Base):
+    """Templatetask."""
     __tablename__ = "template_tasks"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)

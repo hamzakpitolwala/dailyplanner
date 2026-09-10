@@ -19,12 +19,14 @@ class UserService:
         template_repo: TemplateRepository,
         template_task_repo: TemplateTaskRepository,
     ):
+        """  init  ."""
         self.user_profile_repo = user_profile_repo
         self.category_repo = category_repo
         self.template_repo = template_repo
         self.template_task_repo = template_task_repo
 
     async def get_user_profile(self, user_id: UUID) -> UserProfile:
+        """Get user profile."""
         profile = await self.user_profile_repo.get_by_user_id(user_id)
         if not profile:
             profile = UserProfile(user_id=str(user_id))
@@ -39,6 +41,7 @@ class UserService:
     async def update_user_profile(
         self, user_id: UUID, data: UserProfileUpdate
     ) -> UserProfile:
+        """Update user profile."""
         profile = await self.get_user_profile(user_id)
         
         was_completed = profile.onboarding_completed
@@ -74,6 +77,7 @@ class UserService:
     async def _generate_default_templates(
         self, user_id: UUID, profile: UserProfile
     ) -> None:
+        """ generate default templates."""
         t1 = PlannerTemplate(
             user_id=str(user_id), 
             name="AI Balanced Routine", 
@@ -118,6 +122,7 @@ class UserService:
         await self.template_task_repo.create(tt4)
 
     async def _generate_default_categories(self, user_id: UUID) -> None:
+        """ generate default categories."""
         defaults = [
             {"name": "Work", "color_hex": "#3538cd"},
             {"name": "Study", "color_hex": "#b54708"},

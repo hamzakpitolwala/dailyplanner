@@ -1,6 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+/**
+ * Cn.
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -8,6 +11,9 @@ export function cn(...inputs: ClassValue[]) {
 /** Shared scale: 2 pixels per minute → 24-hour canvas is 2 880px tall */
 export const PIXELS_PER_MINUTE = 2;
 
+/**
+ * Parse Time To Minutes.
+ */
 export function parseTimeToMinutes(timeString: string | null | undefined): number {
   if (!timeString) return 0;
   // Handle formats like "YYYY-MM-DDTHH:MM:SS" or "HH:MM:SS" or "HH:MM"
@@ -19,16 +25,25 @@ export function parseTimeToMinutes(timeString: string | null | undefined): numbe
   return (h || 0) * 60 + (m || 0);
 }
 
+/**
+ * Time To Pixels.
+ */
 export function timeToPixels(timeString: string | null | undefined, pixelsPerMinute = PIXELS_PER_MINUTE): number {
   return parseTimeToMinutes(timeString) * pixelsPerMinute;
 }
 
+/**
+ * Calculate Duration Minutes.
+ */
 export function calculateDurationMinutes(startTime: string, endTime: string): number {
   const start = parseTimeToMinutes(startTime);
   const end = parseTimeToMinutes(endTime);
   return Math.max(0, end - start);
 }
 
+/**
+ * Calculate Duration Pixels.
+ */
 export function calculateDurationPixels(startTime: string, endTime: string, pixelsPerMinute = PIXELS_PER_MINUTE): number {
   return calculateDurationMinutes(startTime, endTime) * pixelsPerMinute;
 }
@@ -42,6 +57,9 @@ export function formatIsoTime(isoString?: string | null): string {
   return new Date(isoString).toTimeString().substring(0, 5);
 }
 
+/**
+ * Get Status Color.
+ */
 export function getStatusColor(status: string) {
   switch (status?.toLowerCase()) {
     case 'pending':
@@ -63,6 +81,9 @@ export function getStatusColor(status: string) {
   }
 }
 
+/**
+ * Get Priority Label.
+ */
 export function getPriorityLabel(priority: number) {
   switch (priority) {
     case 1:

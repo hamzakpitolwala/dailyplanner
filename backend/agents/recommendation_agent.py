@@ -15,6 +15,7 @@ from backend.services.pattern_scanner import PatternEvent
 logger = logging.getLogger(__name__)
 
 class LLMRecommendationResponse(BaseModel):
+    """Llmrecommendationresponse."""
     kind: str
     scope: str
     target: Dict[str, Optional[str]]
@@ -29,6 +30,7 @@ class RecommendationAgent:
     def __init__(self, model_name: str = "qwen2.5:7b"):
         # We use a relatively high temperature (0.7) for creative recommendations
 
+        """  init  ."""
         self.model_name = model_name
         self.ollama_url = "http://localhost:11434/api/generate"
 

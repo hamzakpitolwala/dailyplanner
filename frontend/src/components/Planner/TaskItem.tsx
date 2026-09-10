@@ -38,6 +38,9 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
   const isTerminalState = isPastDate || task.status === 'completed' || task.status === 'not_done' || task.status === 'pending_not_done' || task.status === 'partial_not_done';
   const isRescheduleDisabled = task.due_date && new Date(task.due_date) < new Date();
 
+  /**
+   * Handle Status Click.
+   */
   const handleStatusClick = (newStatus: string) => {
     if (isTerminalState) return;
     
@@ -52,6 +55,9 @@ const TaskItemComponent: React.FC<TaskItemProps> = ({
     }
   };
 
+  /**
+   * Submit Checkin Modal.
+   */
   const submitCheckinModal = (checkinData: any) => {
     onCheckin(task.id, checkinData);
     setActiveCheckinStatus(null);

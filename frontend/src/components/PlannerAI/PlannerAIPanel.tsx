@@ -202,10 +202,16 @@ const ProposedAction: FC<{
 
   const hasTasks = Array.isArray(args.tasks);
 
+  /**
+   * Update Field.
+   */
   const updateField = (key: string, value: any) => {
     setArgs((prev: any) => ({ ...prev, [key]: value }));
   };
 
+  /**
+   * Update Task.
+   */
   const updateTask = (index: number, updated: any) => {
     setArgs((prev: any) => {
       const tasks = [...(prev.tasks || [])];
@@ -214,6 +220,9 @@ const ProposedAction: FC<{
     });
   };
 
+  /**
+   * Remove Task.
+   */
   const removeTask = (index: number) => {
     setArgs((prev: any) => {
       const tasks = [...(prev.tasks || [])];
@@ -316,6 +325,9 @@ export const PlannerAIPanel: FC = () => {
     fetchRecommendations();
   }, []);
 
+  /**
+   * Load Chat History.
+   */
   const loadChatHistory = async () => {
     try {
       const data = await aiApi.getRecentConversation();
@@ -340,6 +352,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle New Conversation.
+   */
   const handleNewConversation = () => {
     setMessages([]);
     setConversationId(null);
@@ -347,6 +362,9 @@ export const PlannerAIPanel: FC = () => {
     setResult(null);
   };
 
+  /**
+   * Fetch Recommendations.
+   */
   const fetchRecommendations = async () => {
     try {
       setLoading(true);
@@ -362,6 +380,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Generate Recommendations.
+   */
   const handleGenerateRecommendations = async () => {
     try {
       setLoading(true);
@@ -377,6 +398,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Process Decision.
+   */
   const handleProcessDecision = async (recId: string, decision: 'accepted' | 'rejected' | 'ignored', payloadOverride?: any) => {
     try {
       setLoading(true);
@@ -391,6 +415,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Generate Starter.
+   */
   const handleGenerateStarter = async (extra_prompt = '') => {
     try {
       setLoading(true);
@@ -406,6 +433,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Summarize.
+   */
   const handleSummarize = async (period: 'day' | 'week', extra_prompt = '') => {
     try {
       setLoading(true);
@@ -428,6 +458,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Save Template.
+   */
   const handleSaveTemplate = async (templateName: string, description: string, activities: any[]) => {
     try {
       const templateData = {
@@ -452,6 +485,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Chat.
+   */
   const handleChat = async (text: string) => {
     try {
       setLoading(true);
@@ -483,6 +519,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Approve.
+   */
   const handleApprove = async (workflowId: string, msgId: string, editedArgs?: any) => {
     try {
       setLoading(true);
@@ -519,6 +558,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Reject.
+   */
   const handleReject = async (workflowId: string, msgId: string) => {
     try {
       setLoading(true);
@@ -542,6 +584,9 @@ export const PlannerAIPanel: FC = () => {
     }
   };
 
+  /**
+   * Handle Submit.
+   */
   const handleSubmit = (text: string) => {
     handleChat(text);
   };

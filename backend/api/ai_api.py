@@ -17,6 +17,7 @@ from fastapi import Request
 router = APIRouter(prefix="/ai", tags=["AI Engine"])
 
 class StarterPlanRequest(BaseModel):
+    """Starterplanrequest."""
     day_type: str = "generic"
     extra_prompt: str = ""
 
@@ -30,6 +31,7 @@ async def generate_starter_plan(
     user_service: UserService = Depends(get_user_service),
     fixed_block_repo: FixedBlockRepository = Depends(get_fixed_block_repository),
 ):
+    """Generate starter plan."""
     profile = await user_service.get_user_profile(current_user.id)
     if not profile:
         raise HTTPException(status_code=400, detail="User profile not found. Please complete onboarding.")
@@ -47,6 +49,7 @@ async def generate_starter_plan(
     )
 
 class SummaryRequest(BaseModel):
+    """Summaryrequest."""
     period_type: str = "day" # or "week"
     period_start: str # YYYY-MM-DD
     period_end: str # YYYY-MM-DD
@@ -60,6 +63,7 @@ async def generate_summary(
     current_user = Depends(get_current_user),
     ai_service: AIEngineService = Depends(get_ai_engine_service),
 ):
+    """Generate summary."""
     return await ai_service.generate_summary(
         user_id=current_user.id,
         period_start=req.period_start,
@@ -79,6 +83,7 @@ async def chat(
     fixed_block_repo: FixedBlockRepository = Depends(get_fixed_block_repository),
     chat_agent: PersonalizedChatAgent = Depends(get_chat_agent),
 ):
+    """Chat."""
     reply, s_type, s_data = await chat_agent.chat(
         user_id=current_user.id,
         messages=req.messages,

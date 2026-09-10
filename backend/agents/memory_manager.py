@@ -9,7 +9,9 @@ from backend.db.models.agent import Memory
 logger = logging.getLogger(__name__)
 
 class MemoryManager:
+    """Memorymanager."""
     def __init__(self, db: AsyncSession):
+        """  init  ."""
         self.db = db
 
     async def get_memories(

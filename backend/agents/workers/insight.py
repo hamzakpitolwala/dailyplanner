@@ -11,11 +11,14 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 class ToolCallInsight(BaseModel):
+    """Toolcallinsight."""
     tool_name: str = Field(description="Name of the tool to execute")
     arguments: Dict[str, Any] = Field(description="Arguments for the tool")
 
 class InsightWorker(BaseWorker):
+    """Insightworker."""
     def __init__(self, llm_client: BaseLLMClient):
+        """  init  ."""
         super().__init__(llm_client)
         self.allowed_tools = [
             "get_tasks", "get_schedule", "get_today_summary",

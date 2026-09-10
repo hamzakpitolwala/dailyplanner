@@ -265,6 +265,7 @@ class AnalyticsViewMigrator:
     """Handles migration and synchronization of database analytics views."""
     
     def __init__(self, connection):
+        """  init  ."""
         self.connection = connection
         self.dialect = connection.dialect.name
         
@@ -299,6 +300,7 @@ class AnalyticsViewMigrator:
             self._execute_statements(SQLITE_VIEWS, "SQLite")
             
     def _execute_statements(self, statements, dialect_name):
+        """ execute statements."""
         for stmt in statements:
             try:
                 with self.connection.begin_nested():

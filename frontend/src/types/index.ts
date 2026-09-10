@@ -55,6 +55,7 @@ export interface PlannerTemplate {
   name: string;
   description?: string;
   template_tasks?: any[];
+  task_count?: number;
 }
 
 export interface FixedBlock {
@@ -63,4 +64,6 @@ export interface FixedBlock {
   start_time: string;
   end_time: string;
   days_of_week: number[];
+  apply_all?: boolean;
+  template_ids?: string[];
 }

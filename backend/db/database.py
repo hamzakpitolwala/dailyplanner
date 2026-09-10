@@ -13,6 +13,7 @@ class PortableUUID(TypeDecorator):
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
+        """Load dialect impl."""
         if dialect.name == 'postgresql':
             return dialect.type_descriptor(PG_UUID(as_uuid=False))
         else:

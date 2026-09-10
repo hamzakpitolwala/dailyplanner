@@ -12,6 +12,7 @@ from backend.services.template_service import TemplateService
 logger = logging.getLogger(__name__)
 
 async def _get_template_service():
+    """ get template service."""
     db = SessionLocal()
     template_repo = TemplateRepository(db)
     template_task_repo = TemplateTaskRepository(db)
@@ -159,6 +160,7 @@ async def add_task_to_template(user_id: str, template_id: str, tasks: List[Dict[
         await db.close()
 
 async def _resolve_template_task(service, user_id: UUID, template_name: str, task_name: str, target_time: Optional[str] = None):
+    """ resolve template task."""
     template = await service.get_template_by_name(user_id, template_name)
     if not template:
         return None, f"Template '{template_name}' not found."

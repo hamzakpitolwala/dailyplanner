@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { styles } from '../../utils/styles';
-import { fetchTemplates, createTemplate, deleteTemplate, deleteTemplateTask, updateTemplateTask, createTemplateTask } from '../../api/templateApi';
+import { createTemplate, deleteTemplate, deleteTemplateTask, updateTemplateTask, createTemplateTask } from '../../api/templateApi';
 import { userApi } from '../../api/userApi';
+import { useTemplates } from '../../contexts/TemplateContext';
 import { TaskForm } from '../Planner/TaskForm';
 import { emptyTask } from '../../utils/constants';
 import { Edit2, Trash2 } from 'lucide-react';
 
 export const TemplateManager = ({ setMessage, profile, setProfile, setAppView }) => {
-  const [templates, setTemplates] = useState([]);
+  const { templates, refreshTemplates, loadTemplateTasks } = useTemplates();
   const [templateName, setTemplateName] = useState('');
   
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -15,18 +16,13 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
   const [activeTemplateId, setActiveTemplateId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
 
-  const loadTemplates = async () => {
-    try {
-      const data = await fetchTemplates();
-      setTemplates(data || []);
-    } catch (error) {
-      setMessage(error.message);
-    }
-  };
-
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    templates.forEach(tmpl => {
+      if (tmpl.task_count > 0 && (!tmpl.template_tasks || tmpl.template_tasks.length === 0)) {
+        loadTemplateTasks(tmpl.id);
+      }
+    });
+  }, [templates, loadTemplateTasks]);
 
   const submitTemplate = async (e) => {
     e.preventDefault();
@@ -34,7 +30,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
     try {
       await createTemplate(templateName);
       setTemplateName('');
-      await loadTemplates();
+      await refreshTemplates();
       setMessage('Template created.');
     } catch (error) {
       setMessage(error.message);
@@ -59,7 +55,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
     if (!window.confirm("Are you sure you want to delete this template?")) return;
     try {
       await deleteTemplate(templateId);
-      await loadTemplates();
+      await refreshTemplates();
       if (profile?.active_planner_id === templateId) {
         await userApi.updateUserProfile({ ...profile, active_planner_id: null });
         setProfile({ ...profile, active_planner_id: null });
@@ -74,7 +70,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
     if (!window.confirm("Delete this task from the template?")) return;
     try {
       await deleteTemplateTask(templateId, taskId);
-      await loadTemplates();
+      await refreshTemplates();
       setMessage('Task removed from template.');
     } catch (error) {
       setMessage(error.message);
@@ -145,7 +141,7 @@ export const TemplateManager = ({ setMessage, profile, setProfile, setAppView })
       }
       
       setShowTaskForm(false);
-      await loadTemplates();
+      await refreshTemplates();
     } catch (error) {
       setMessage(error.message);
     }

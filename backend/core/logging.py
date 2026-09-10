@@ -11,6 +11,7 @@ class LoggerFactory:
     
     @classmethod
     def get_logger(cls, name: str) -> logging.Logger:
+        """Get logger."""
         if name not in cls._loggers:
             logger = logging.getLogger(name)
             # Add basic stream handler if no handlers exist
@@ -29,10 +30,12 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware for structured request logging."""
     
     def __init__(self, app):
+        """  init  ."""
         super().__init__(app)
         self.logger = LoggerFactory.get_logger("api_access")
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        """Dispatch."""
         start_time = time.time()
         
         try:

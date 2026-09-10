@@ -1,5 +1,8 @@
 const API_URL = '/fixed-blocks';
 
+/**
+ * Get Headers.
+ */
 const getHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -8,12 +11,18 @@ const getHeaders = () => {
   };
 };
 
+/**
+ * Fetch Fixed Blocks.
+ */
 export const fetchFixedBlocks = async () => {
   const res = await fetch(API_URL, { headers: getHeaders() });
   if (!res.ok) throw new Error('Failed to fetch fixed blocks');
   return res.json();
 };
 
+/**
+ * Create Fixed Block.
+ */
 export const createFixedBlock = async (data) => {
   const res = await fetch(API_URL, {
     method: 'POST',
@@ -24,6 +33,9 @@ export const createFixedBlock = async (data) => {
   return res.json();
 };
 
+/**
+ * Update Fixed Block.
+ */
 export const updateFixedBlock = async (id, data) => {
   const res = await fetch(`${API_URL}/${id}`, {
     method: 'PUT',
@@ -34,6 +46,9 @@ export const updateFixedBlock = async (id, data) => {
   return res.json();
 };
 
+/**
+ * Delete Fixed Block.
+ */
 export const deleteFixedBlock = async (id) => {
   const res = await fetch(`${API_URL}/${id}`, {
     method: 'DELETE',

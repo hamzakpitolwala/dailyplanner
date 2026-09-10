@@ -11,12 +11,15 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 class ToolCall(BaseModel):
+    """Toolcall."""
     tool_name: str = Field(description="Name of the tool to execute")
     arguments: Dict[str, Any] = Field(description="Arguments for the tool")
     explanation: str = Field(description="Explanation of what this tool call will do to show the user")
 
 class PlannerChangeWorker(BaseWorker):
+    """Plannerchangeworker."""
     def __init__(self, llm_client: BaseLLMClient):
+        """  init  ."""
         super().__init__(llm_client)
         self.allowed_tools = [
             "create_task", "update_task", "delete_task", "complete_task",

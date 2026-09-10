@@ -11,17 +11,23 @@ logger = logging.getLogger(__name__)
 T = TypeVar('T', bound=BaseModel)
 
 class BaseLLMClient(abc.ABC):
+    """Basellmclient."""
+    
     @abc.abstractmethod
     async def chat(self, system_prompt: str, user_prompt: str) -> str:
+        """Chat."""
         pass
 
 
 class OllamaClient(BaseLLMClient):
+    """Ollamaclient."""
     def __init__(self, base_url: str = "http://localhost:11434/api/chat", model: str = "qwen2.5:7b"):
+        """  init  ."""
         self.base_url = base_url
         self.model = model
 
     async def chat(self, system_prompt: str, user_prompt: str) -> str:
+        """Chat."""
         async with httpx.AsyncClient(timeout=180.0) as client:
             try:
                 payload = {
@@ -49,7 +55,9 @@ class OllamaClient(BaseLLMClient):
 
 
 class LLMResponseValidator:
+    """Llmresponsevalidator."""
     def __init__(self, client: BaseLLMClient):
+        """  init  ."""
         self.client = client
 
     async def generate_and_parse(self, system_prompt: str, user_prompt: str, model_cls: Type[T]) -> T:
@@ -73,6 +81,7 @@ class LLMResponseValidator:
                 raise HTTPException(status_code=502, detail="AI response format invalid")
 
     def _parse(self, content: str, model_cls: Type[T]) -> T:
+        """ parse."""
         import re
         
         # Try to find a JSON block using regex if it's embedded in text

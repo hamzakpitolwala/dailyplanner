@@ -7,10 +7,10 @@ import {
   deleteTask,
   postTaskCheckin,
   fetchEarliestTaskDate,
-  fetchMissedCheckins,
+  fetchMissedCheckins
 } from '../api/taskApi';
-import { fetchTemplateById } from '../api/templateApi';
 import { syncGoogleCalendar } from '../api/integrationApi';
+import { useTemplates } from '../contexts/TemplateContext';
 import { PlannerTimeline } from '../components/Planner/PlannerTimeline';
 import { TaskForm } from '../components/Planner/TaskForm';
 import { MissedCheckinsModal } from '../components/Planner/MissedCheckinsModal';
@@ -66,12 +66,11 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [activePlanner, setActivePlanner] = useState<PlannerTemplate | null>(null);
+  const { templates, activeTemplate: activePlanner } = useTemplates();
 
   const [missedTasks, setMissedTasks] = useState<Task[]>([]);
   const [fixedBlocks, setFixedBlocks] = useState<FixedBlock[]>([]);
   const [earliestDate, setEarliestDate] = useState<string>(todayIso());
-  const [templates, setTemplates] = useState<PlannerTemplate[]>([]);
   
   const isSyncing = useRef(false);
   const [taskFormError, setTaskFormError] = useState<string | null>(null);
@@ -93,24 +92,6 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
       setFixedBlocks(blocks);
     } catch (error: any) {
       console.error("Failed to load fixed blocks", error);
-    }
-  };
-
-  const loadPlanner = async () => {
-    try {
-      const { fetchTemplates } = await import('../api/templateApi');
-      const data = await fetchTemplates();
-      setTemplates(data);
-    } catch (err) {
-      console.error(err);
-    }
-
-    if (!profile?.active_planner_id) return;
-    try {
-      const data = await fetchTemplateById(profile.active_planner_id);
-      setActivePlanner(data);
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -173,10 +154,6 @@ export const PlannerPage: FC<PlannerPageProps> = ({ setMessage, profile, setAppV
     window.addEventListener('HIGHLIGHT_TEMPLATE_TASK', handleHighlight);
     return () => window.removeEventListener('HIGHLIGHT_TEMPLATE_TASK', handleHighlight);
   }, [tasks]);
-
-  useEffect(() => {
-    loadPlanner();
-  }, [profile?.active_planner_id]);
 
   useEffect(() => {
     const checkMissed = async () => {

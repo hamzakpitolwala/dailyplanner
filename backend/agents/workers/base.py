@@ -10,7 +10,9 @@ from backend.services.llm_client import BaseLLMClient
 logger = logging.getLogger(__name__)
 
 class BaseWorker(abc.ABC):
+    """Baseworker."""
     def __init__(self, llm_client: BaseLLMClient):
+        """  init  ."""
         self.llm_client = llm_client
         self.allowed_tools = []
 
@@ -20,6 +22,7 @@ class BaseWorker(abc.ABC):
         pass
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Execute tool."""
         if tool_name not in self.allowed_tools:
             return {"error": f"Tool {tool_name} is not allowed for this worker."}
         

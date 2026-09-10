@@ -48,7 +48,19 @@ async def list_tasks(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> list[TaskResponse]:
+    """List tasks."""
     return await service.list_tasks(user.id, target_date, tz_offset, skip, limit) # type: ignore
+
+@router.get("/history", response_model=list[TaskResponse])
+async def list_task_history(
+    tz_offset: int = 0,
+    skip: int = 0,
+    limit: int = 1000,
+    user: User = Depends(get_current_user),
+    service: TaskService = Depends(get_task_service),
+) -> list[TaskResponse]:
+    """List task history."""
+    return await service.list_task_history(user.id, tz_offset, skip, limit) # type: ignore
 
 
 @router.get("/earliest-date")
@@ -56,6 +68,7 @@ async def get_earliest_task_date(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """Get earliest task date."""
     date = await service.get_earliest_task_date(user.id)
     return {"earliest_date": date}
 
@@ -66,6 +79,7 @@ async def create_task(
     user: User = Depends(get_current_user),
     sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> TaskResponse:
+    """Create task."""
     if payload.category_id is not None:
         category = await sync_manager.task_service.get_category(user.id, payload.category_id) # type: ignore
         if category is None:
@@ -87,6 +101,7 @@ async def list_missed_reasons(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """List missed reasons."""
     return await service.list_missed_reasons(user.id) # type: ignore
 
 
@@ -96,6 +111,7 @@ async def list_missed_checkins(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> list[TaskResponse]:
+    """List missed checkins."""
     return await service.list_pending_checkins(user.id, tz_offset) # type: ignore
 
 
@@ -104,6 +120,7 @@ async def list_alternate_activities(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """List alternate activities."""
     return await service.list_alternate_activities(user.id) # type: ignore
 
 
@@ -113,6 +130,7 @@ async def get_task(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> TaskResponse:
+    """Get task."""
     task = await service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -126,6 +144,7 @@ async def create_task_checkin(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """Create task checkin."""
     task = await service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -139,6 +158,7 @@ async def update_task(
     user: User = Depends(get_current_user),
     sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> TaskResponse:
+    """Update task."""
     task = await sync_manager.task_service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -165,6 +185,7 @@ async def delete_task(
     user: User = Depends(get_current_user),
     sync_manager: CalendarSyncManager = Depends(get_calendar_sync_manager),
 ) -> None:
+    """Delete task."""
     task = await sync_manager.task_service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -188,6 +209,7 @@ async def create_subtask(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """Create subtask."""
     task = await service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -202,6 +224,7 @@ async def update_subtask(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """Update subtask."""
     task = await service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -220,6 +243,7 @@ async def delete_subtask(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
+    """Delete subtask."""
     task = await service.get_task(user.id, task_id) # type: ignore
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
@@ -241,6 +265,7 @@ async def list_categories(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> list[CategoryResponse]:
+    """List categories."""
     return await service.list_categories(user.id) # type: ignore
 
 
@@ -250,6 +275,7 @@ async def create_category(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> CategoryResponse:
+    """Create category."""
     return await service.create_category(user.id, payload) # type: ignore
 
 
@@ -260,6 +286,7 @@ async def update_category(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> CategoryResponse:
+    """Update category."""
     category = await service.get_category(user.id, category_id) # type: ignore
     if category is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
@@ -272,6 +299,7 @@ async def delete_category(
     user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ) -> None:
+    """Delete category."""
     category = await service.get_category(user.id, category_id) # type: ignore
     if category is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")

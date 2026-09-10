@@ -60,6 +60,7 @@ class ChatHistoryService:
     """Manages chat message persistence in Pinecone."""
 
     def __init__(self):
+        """  init  ."""
         self.index = _get_pinecone_index()
 
     # ─── Write ────────────────────────────────────────────────────────

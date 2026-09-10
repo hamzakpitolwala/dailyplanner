@@ -20,6 +20,7 @@ async def get_overview(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get overview."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await analytics_service.get_overview(user_id=str(current_user.id))
 
@@ -33,6 +34,7 @@ async def get_time_patterns(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get time patterns."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await analytics_service.get_time_patterns(user_id=str(current_user.id))
 
@@ -46,6 +48,7 @@ async def get_calendar_conflicts(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get calendar conflicts."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await analytics_service.get_calendar_conflicts(user_id=str(current_user.id))
 
@@ -59,6 +62,7 @@ async def get_focus_metrics(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get focus metrics."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await analytics_service.get_focus_metrics(user_id=str(current_user.id))
 
@@ -72,6 +76,7 @@ async def get_ai_effectiveness(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get ai effectiveness."""
     response.headers["Cache-Control"] = "public, max-age=300"
     return await analytics_service.get_ai_effectiveness(user_id=str(current_user.id))
 
@@ -85,6 +90,7 @@ async def get_office_hours(
     current_user: User = Depends(get_current_user),
     analytics_service: AnalyticsService = Depends(get_analytics_service)
 ):
+    """Get office hours."""
     response.headers["Cache-Control"] = "public, max-age=300"
     # Simplified office hours adherence placeholder
     return []

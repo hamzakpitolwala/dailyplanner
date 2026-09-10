@@ -28,6 +28,7 @@ class AIEngineService:
         llm_client: BaseLLMClient,
         task_service: TaskService,
     ):
+        """  init  ."""
         self.ai_profile_repo = ai_profile_repo
         self.ai_recommendation_repo = ai_recommendation_repo
         self.ai_summary_repo = ai_summary_repo
@@ -36,6 +37,7 @@ class AIEngineService:
         self.task_service = task_service
 
     async def get_or_create_profile(self, user_id: UUID) -> AIUserProfile:
+        """Get or create profile."""
         profile = await self.ai_profile_repo.get_by_user_id(user_id)
         if not profile:
             profile = AIUserProfile(user_id=str(user_id))
@@ -43,11 +45,13 @@ class AIEngineService:
         return profile
 
     async def list_pending_recommendations(self, user_id: UUID) -> list[AIRecommendation]:
+        """List pending recommendations."""
         return await self.ai_recommendation_repo.list_pending_recommendations(user_id)
 
     async def update_recommendation_status(
         self, user_id: UUID, recommendation_id: UUID, data: AIRecommendationUpdate
     ) -> AIRecommendation | None:
+        """Update recommendation status."""
         rec = await self.ai_recommendation_repo.get_recommendation(
             user_id, recommendation_id
         )
@@ -68,6 +72,7 @@ class AIEngineService:
         day_type: str = "generic",
         extra_prompt: str = ""
     ) -> StarterPlanner:
+        """Generate starter plan."""
         from backend.agents.starter_planner_agent import build_starter_planner_graph
         graph = build_starter_planner_graph()
         
@@ -99,6 +104,7 @@ class AIEngineService:
     ) -> PlannerSummaryResponse:
         
         # Parse dates
+        """Generate summary."""
         try:
             start_dt = datetime.strptime(period_start, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             end_dt = datetime.strptime(period_end, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=timezone.utc)
@@ -156,6 +162,7 @@ class AIEngineService:
     async def apply_recommendation(
         self, user_id: UUID, recommendation: AIRecommendation, user_overrides: dict = None
     ) -> RecommendationOutcome:
+        """Apply recommendation."""
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"Applying recommendation {recommendation.id} for user {user_id}")

@@ -24,6 +24,9 @@ export const TaskForm = ({
     setFormData(initialTask || {});
   }, [initialTask]);
 
+  /**
+   * Handle Submit.
+   */
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(formData);

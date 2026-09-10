@@ -16,6 +16,9 @@ export const MissedCheckinsModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    /**
+     * Load Options.
+     */
     const loadOptions = async () => {
       try {
         const fetchedReasons = await fetchMissedReasons();
@@ -36,6 +39,9 @@ export const MissedCheckinsModal = ({
     loadOptions();
   }, [tasks, setMessage]);
 
+  /**
+   * Handle Change.
+   */
   const handleChange = (taskId, field, value) => {
     setCheckinsData(prev => ({
       ...prev,
@@ -46,6 +52,9 @@ export const MissedCheckinsModal = ({
     }));
   };
 
+  /**
+   * Handle Submit.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);

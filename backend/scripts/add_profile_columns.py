@@ -4,6 +4,7 @@ import os
 db_path = os.path.join(os.path.dirname(__file__), "..", "dailyplanner.db")
 
 def migrate():
+    """Migrate."""
     print(f"Connecting to {db_path}...")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

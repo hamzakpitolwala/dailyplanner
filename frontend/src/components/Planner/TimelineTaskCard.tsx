@@ -58,6 +58,9 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
     task.status === 'partial_not_done';
   const isRescheduleDisabled = task.due_date ? new Date(task.due_date) < new Date() : false;
 
+  /**
+   * Handle Status Click.
+   */
   const handleStatusClick = (newStatus: string) => {
     if (isTerminalState) return;
 
@@ -71,6 +74,9 @@ export const TimelineTaskCard: FC<TimelineTaskCardProps> = memo(({
     }
   };
 
+  /**
+   * Submit Checkin Modal.
+   */
   const submitCheckinModal = (checkinData: any) => {
     onCheckin(task.id, checkinData);
     setActiveCheckinStatus(null);

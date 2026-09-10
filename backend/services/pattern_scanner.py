@@ -11,13 +11,16 @@ from backend.db.models.integrations import ExternalSyncedEvent
 logger = logging.getLogger(__name__)
 
 class PatternEvent:
+    """Patternevent."""
     def __init__(self, pattern_type: str, activity_ids: List[str], time_window: str, evidence: Dict[str, Any]):
+        """  init  ."""
         self.pattern_type = pattern_type
         self.activity_ids = activity_ids
         self.time_window = time_window
         self.evidence = evidence
 
     def to_dict(self) -> dict:
+        """To dict."""
         return {
             "pattern_type": self.pattern_type,
             "activity_ids": self.activity_ids,
@@ -30,12 +33,14 @@ class PatternRule(ABC):
     """Strategy interface for pattern scanning rules."""
     @abstractmethod
     async def evaluate(self, user_id: str, db: AsyncSession, start_date: date, end_date: date) -> List[PatternEvent]:
+        """Evaluate."""
         pass
 
 
 class RepeatedMissesRule(PatternRule):
     """Detects activities that are repeatedly missed in a specific time window."""
     async def evaluate(self, user_id: str, db: AsyncSession, start_date: date, end_date: date) -> List[PatternEvent]:
+        """Evaluate."""
         logger.info(f"Evaluating RepeatedMissesRule for user {user_id} between {start_date} and {end_date}")
         events = []
         # A simple implementation fetching recent checkins
@@ -74,6 +79,7 @@ class RepeatedMissesRule(PatternRule):
 class OverloadDayRule(PatternRule):
     """Detects days with excessive planned work and low completion rate."""
     async def evaluate(self, user_id: str, db: AsyncSession, start_date: date, end_date: date) -> List[PatternEvent]:
+        """Evaluate."""
         logger.info(f"Evaluating OverloadDayRule for user {user_id}")
         events = []
         # Simplistic implementation: just returns empty or logic here.
@@ -84,6 +90,7 @@ class OverloadDayRule(PatternRule):
 class CalendarConflictRule(PatternRule):
     """Detects misses that correlate with calendar events overlapping planner blocks."""
     async def evaluate(self, user_id: str, db: AsyncSession, start_date: date, end_date: date) -> List[PatternEvent]:
+        """Evaluate."""
         logger.info(f"Evaluating CalendarConflictRule for user {user_id}")
         events = []
         # Simplistic implementation
@@ -93,6 +100,7 @@ class CalendarConflictRule(PatternRule):
 class PatternScannerService:
     """Context for PatternScanner that applies a list of rules."""
     def __init__(self, db: AsyncSession):
+        """  init  ."""
         self.db = db
         self.rules: List[PatternRule] = [
             RepeatedMissesRule(),
@@ -101,6 +109,7 @@ class PatternScannerService:
         ]
 
     async def scan(self, user_id: str, period_days: int = 7) -> List[PatternEvent]:
+        """Scan."""
         logger.info(f"Starting pattern scan for user {user_id} over last {period_days} days")
         end_date = date.today()
         start_date = end_date - timedelta(days=period_days)

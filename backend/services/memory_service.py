@@ -11,12 +11,15 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 class MemoryExtraction(BaseModel):
+    """Memoryextraction."""
     extracted_memories: List[Dict[str, Any]] = Field(
         description="List of extracted memories with 'content', 'category', and 'scope' keys. Valid scopes: user_profile, session, episodic, behavioral"
     )
 
 class MemoryService:
+    """Memoryservice."""
     def __init__(self, memory_manager: MemoryManager, llm_client: BaseLLMClient):
+        """  init  ."""
         self.memory_manager = memory_manager
         self.llm_client = llm_client
         self.validator = LLMResponseValidator(llm_client)

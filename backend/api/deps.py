@@ -41,45 +41,59 @@ from backend.services.chat_history_service import ChatHistoryService
 # --- Repository Factory Functions ---
 
 def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
+    """Get user repository."""
     return UserRepository(db)
 
 def get_user_profile_repository(db: AsyncSession = Depends(get_db)) -> UserProfileRepository:
+    """Get user profile repository."""
     return UserProfileRepository(db)
 
 def get_task_repository(db: AsyncSession = Depends(get_db)) -> TaskRepository:
+    """Get task repository."""
     return TaskRepository(db)
 
 def get_category_repository(db: AsyncSession = Depends(get_db)) -> CategoryRepository:
+    """Get category repository."""
     return CategoryRepository(db)
 
 def get_template_repository(db: AsyncSession = Depends(get_db)) -> TemplateRepository:
+    """Get template repository."""
     return TemplateRepository(db)
 
 def get_template_task_repository(db: AsyncSession = Depends(get_db)) -> TemplateTaskRepository:
+    """Get template task repository."""
     return TemplateTaskRepository(db)
 
 def get_integration_repository(db: AsyncSession = Depends(get_db)) -> IntegrationRepository:
+    """Get integration repository."""
     return IntegrationRepository(db)
 
 def get_ai_user_profile_repository(db: AsyncSession = Depends(get_db)) -> AIUserProfileRepository:
+    """Get ai user profile repository."""
     return AIUserProfileRepository(db)
 
 def get_ai_recommendation_repository(db: AsyncSession = Depends(get_db)) -> AIRecommendationRepository:
+    """Get ai recommendation repository."""
     return AIRecommendationRepository(db)
 
 def get_ai_summary_repository(db: AsyncSession = Depends(get_db)) -> AISummaryRepository:
+    """Get ai summary repository."""
     return AISummaryRepository(db)
 
 def get_recommendation_outcome_repository(db: AsyncSession = Depends(get_db)) -> RecommendationOutcomeRepository:
+    """Get recommendation outcome repository."""
     return RecommendationOutcomeRepository(db)
 
 def get_fixed_block_repository(db: AsyncSession = Depends(get_db)) -> FixedBlockRepository:
+    """Get fixed block repository."""
     return FixedBlockRepository(db)
 
 def get_llm_client() -> OllamaClient:
+    """Get llm client."""
     return OllamaClient(model="qwen2.5:7b")
 
 def get_analytics_repository(db: AsyncSession = Depends(get_db)) -> AnalyticsRepository:
+    """Get analytics repository."""
     return AnalyticsRepository(db)
 
 # --- Service Factory Functions ---
@@ -87,6 +101,7 @@ def get_analytics_repository(db: AsyncSession = Depends(get_db)) -> AnalyticsRep
 def get_auth_service(
     user_repo: UserRepository = Depends(get_user_repository)
 ) -> AuthService:
+    """Get auth service."""
     return AuthService(user_repo=user_repo)
 
 def get_user_service(
@@ -95,6 +110,7 @@ def get_user_service(
     template_repo: TemplateRepository = Depends(get_template_repository),
     template_task_repo: TemplateTaskRepository = Depends(get_template_task_repository),
 ) -> UserService:
+    """Get user service."""
     return UserService(
         user_profile_repo=user_profile_repo,
         category_repo=category_repo,
@@ -107,6 +123,7 @@ def get_user_service(
 def get_integration_service(
     integration_repo: IntegrationRepository = Depends(get_integration_repository)
 ) -> IntegrationService:
+    """Get integration service."""
     return IntegrationService(integration_repo=integration_repo)
 
 def get_task_service(
@@ -114,6 +131,7 @@ def get_task_service(
     category_repo: CategoryRepository = Depends(get_category_repository),
     user_repo: UserRepository = Depends(get_user_repository),
 ) -> TaskService:
+    """Get task service."""
     return TaskService(
         task_repo=task_repo,
         category_repo=category_repo,
@@ -125,6 +143,7 @@ def get_template_service(
     template_task_repo: TemplateTaskRepository = Depends(get_template_task_repository),
     task_repo: TaskRepository = Depends(get_task_repository),
 ) -> TemplateService:
+    """Get template service."""
     return TemplateService(
         template_repo=template_repo,
         template_task_repo=template_task_repo,
@@ -139,6 +158,7 @@ def get_ai_engine_service(
     llm_client: OllamaClient = Depends(get_llm_client),
     task_service: TaskService = Depends(get_task_service),
 ) -> AIEngineService:
+    """Get ai engine service."""
     return AIEngineService(
         ai_profile_repo=ai_profile_repo,
         ai_recommendation_repo=ai_recommendation_repo,
@@ -151,6 +171,7 @@ def get_ai_engine_service(
 def get_analytics_service(
     analytics_repo: AnalyticsRepository = Depends(get_analytics_repository)
 ) -> AnalyticsService:
+    """Get analytics service."""
     return AnalyticsService(analytics_repo=analytics_repo)
 
 from backend.services.calendar_sync_manager import CalendarSyncManager
@@ -161,46 +182,58 @@ def get_calendar_sync_manager(
     integration_service: IntegrationService = Depends(get_integration_service),
     task_service: TaskService = Depends(get_task_service),
 ) -> CalendarSyncManager:
+    """Get calendar sync manager."""
     return CalendarSyncManager(
         integration_service=integration_service,
         task_service=task_service,
     )
 
 def get_recommendation_agent() -> RecommendationAgent:
+    """Get recommendation agent."""
     return RecommendationAgent()
 
 def get_chat_agent() -> PersonalizedChatAgent:
+    """Get chat agent."""
     return PersonalizedChatAgent()
 
 # --- Agent Multi-Agent Dependencies ---
 
 def get_state_machine(db: AsyncSession = Depends(get_db)) -> StateMachine:
+    """Get state machine."""
     return StateMachine(db)
 
 def get_orchestrator(llm_client: OllamaClient = Depends(get_llm_client)) -> Orchestrator:
+    """Get orchestrator."""
     return Orchestrator(llm_client)
 
 def get_memory_manager(db: AsyncSession = Depends(get_db)) -> MemoryManager:
+    """Get memory manager."""
     return MemoryManager(db)
 
 def get_memory_service(
     memory_manager: MemoryManager = Depends(get_memory_manager),
     llm_client: OllamaClient = Depends(get_llm_client)
 ) -> MemoryService:
+    """Get memory service."""
     return MemoryService(memory_manager, llm_client)
 
 def get_planner_worker(llm_client: OllamaClient = Depends(get_llm_client)) -> PlannerChangeWorker:
+    """Get planner worker."""
     return PlannerChangeWorker(llm_client)
 
 def get_insight_worker(llm_client: OllamaClient = Depends(get_llm_client)) -> InsightWorker:
+    """Get insight worker."""
     return InsightWorker(llm_client)
 
 def get_conversation_worker(llm_client: OllamaClient = Depends(get_llm_client)) -> ConversationWorker:
+    """Get conversation worker."""
     return ConversationWorker(llm_client)
 
 def get_verification_layer() -> VerificationLayer:
+    """Get verification layer."""
     return VerificationLayer()
 
 def get_chat_history_service() -> ChatHistoryService:
+    """Get chat history service."""
     return ChatHistoryService()
 

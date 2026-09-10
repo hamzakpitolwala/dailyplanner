@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 # ---------------------------------------------------------------------------
 
 class TemplateTaskBase(BaseModel):
+    """Templatetaskbase."""
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     priority: int = Field(default=1, ge=1)
@@ -22,10 +23,12 @@ class TemplateTaskBase(BaseModel):
 
 
 class TemplateTaskCreate(TemplateTaskBase):
+    """Templatetaskcreate."""
     pass
 
 
 class TemplateTaskUpdate(BaseModel):
+    """Templatetaskupdate."""
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     priority: int | None = Field(default=None, ge=1)
@@ -40,6 +43,7 @@ class TemplateTaskUpdate(BaseModel):
 
 
 class TemplateTaskResponse(TemplateTaskBase):
+    """Templatetaskresponse."""
     id: UUID
     template_id: UUID
     created_at: datetime
@@ -52,24 +56,29 @@ class TemplateTaskResponse(TemplateTaskBase):
 # ---------------------------------------------------------------------------
 
 class PlannerTemplateBase(BaseModel):
+    """Plannertemplatebase."""
     name: str = Field(min_length=1, max_length=100)
     description: str | None = None
 
 
 class PlannerTemplateCreate(PlannerTemplateBase):
+    """Plannertemplatecreate."""
     template_tasks: list[TemplateTaskCreate] = Field(default_factory=list)
 
 
 class PlannerTemplateUpdate(BaseModel):
+    """Plannertemplateupdate."""
     name: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = None
 
 
 class PlannerTemplateResponse(PlannerTemplateBase):
+    """Plannertemplateresponse."""
     id: UUID
     user_id: UUID
     created_at: datetime
     updated_at: datetime
     template_tasks: list[TemplateTaskResponse] = []
+    task_count: int = 0
 
     model_config = {"from_attributes": True}

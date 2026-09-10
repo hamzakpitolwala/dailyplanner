@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _resolve_task(service, user_id: str, identifier: str):
+    """ resolve task."""
     from uuid import UUID
     try:
         task_id = UUID(identifier.strip())
@@ -36,6 +37,7 @@ async def _resolve_task(service, user_id: str, identifier: str):
         return None
 
 async def _get_task_service():
+    """ get task service."""
     db = SessionLocal()
     task_repo = TaskRepository(db)
     category_repo = CategoryRepository(db)

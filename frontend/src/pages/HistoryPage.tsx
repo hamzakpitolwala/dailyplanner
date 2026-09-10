@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { fetchTasks, deleteTask } from '../api/taskApi';
+import { fetchTaskHistory, deleteTask } from '../api/taskApi';
 import { PastTaskCard } from '../components/Planner/PastTaskCard';
 import { Task } from '../types';
 import { Calendar } from 'lucide-react';
@@ -13,17 +13,9 @@ export const HistoryPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const allTasks = await fetchTasks();
+      const allTasks = await fetchTaskHistory();
       
-      // Filter for past tasks only (tasks with a date before today)
-      const localToday = new Date().toLocaleDateString('en-CA');
-      const pastTasks = allTasks.filter((task: Task) => {
-        if (!task.due_date) return false;
-        const taskDate = task.due_date.split('T')[0];
-        return taskDate < localToday;
-      });
-      
-      setTasks(pastTasks);
+      setTasks(allTasks);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to load history');

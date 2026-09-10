@@ -88,6 +88,7 @@ class GoogleCalendarAdapter(BaseCalendarProvider):
         return token_record.access_token
 
     async def refresh_token(self, token_record: UserOAuthToken) -> tuple[str, datetime]:
+        """Refresh token."""
         if not token_record.refresh_token:
             raise ValueError("No refresh token available for Google Calendar account")
 
@@ -112,6 +113,7 @@ class GoogleCalendarAdapter(BaseCalendarProvider):
     async def fetch_events_for_day(
         self, token_record: UserOAuthToken, target_date: str, tz_offset_minutes: int = 0
     ) -> list[dict]:
+        """Fetch events for day."""
         access_token = await self._get_valid_access_token(token_record)
 
         date_obj = datetime.strptime(target_date, "%Y-%m-%d")
@@ -178,6 +180,7 @@ class GoogleCalendarAdapter(BaseCalendarProvider):
         start_time: datetime | None = None,
         end_time: datetime | None = None,
     ) -> dict:
+        """Update event."""
         access_token = await self._get_valid_access_token(token_record)
 
         url = f"{self.CALENDAR_API_BASE}/calendars/{calendar_id}/events/{external_id}"
@@ -213,6 +216,7 @@ class GoogleCalendarAdapter(BaseCalendarProvider):
         start_time: datetime | None = None,
         end_time: datetime | None = None,
     ) -> dict:
+        """Create event."""
         access_token = await self._get_valid_access_token(token_record)
 
         url = f"{self.CALENDAR_API_BASE}/calendars/{calendar_id}/events"
@@ -242,6 +246,7 @@ class GoogleCalendarAdapter(BaseCalendarProvider):
     async def cancel_event(
         self, token_record: UserOAuthToken, calendar_id: str, external_id: str
     ) -> bool:
+        """Cancel event."""
         access_token = await self._get_valid_access_token(token_record)
 
         url = f"{self.CALENDAR_API_BASE}/calendars/{calendar_id}/events/{external_id}"
@@ -264,6 +269,7 @@ class CalendarProviderFactory:
 
     @classmethod
     def get_provider(cls, provider_name: str = "google") -> BaseCalendarProvider:
+        """Get provider."""
         provider = cls._providers.get(provider_name.lower())
         if not provider:
             raise ValueError(f"Unsupported calendar provider: {provider_name}")

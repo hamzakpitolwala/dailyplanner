@@ -7,9 +7,11 @@ from backend.db.database import Base, PortableUUID
 import uuid
 
 def _uuid() -> str:
+    """ uuid."""
     return str(uuid.uuid4())
 
 class WorkflowRun(Base):
+    """Workflowrun."""
     __tablename__ = "workflow_runs"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -36,6 +38,7 @@ class WorkflowRun(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 class ConversationSession(Base):
+    """Conversationsession."""
     __tablename__ = "conversation_sessions"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -51,6 +54,7 @@ class ConversationSession(Base):
     messages = relationship("ConversationMessage", back_populates="session", cascade="all, delete-orphan")
 
 class ConversationMessage(Base):
+    """Conversationmessage."""
     __tablename__ = "conversation_messages"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -78,6 +82,7 @@ class ConversationMessage(Base):
     session = relationship("ConversationSession", back_populates="messages")
 
 class Memory(Base):
+    """Memory."""
     __tablename__ = "memories"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -106,6 +111,7 @@ class Memory(Base):
     is_active = Column(Integer, server_default="1", nullable=False) # boolean SQLite compat
 
 class AuditEvent(Base):
+    """Auditevent."""
     __tablename__ = "audit_events"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)

@@ -7,6 +7,7 @@ from backend.db.database import engine
 from sqlalchemy import text
 
 async def main():
+    """Main."""
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE template_tasks ADD COLUMN requires_reason BOOLEAN DEFAULT FALSE"))

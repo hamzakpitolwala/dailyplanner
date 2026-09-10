@@ -4,10 +4,12 @@ from uuid import UUID
 from datetime import datetime
 
 class AgentChatRequest(BaseModel):
+    """Agentchatrequest."""
     message: str
     conversation_id: Optional[UUID] = None
 
 class AgentChatResponse(BaseModel):
+    """Agentchatresponse."""
     workflow_id: UUID
     conversation_id: UUID
     status: str # "completed", "waiting_for_user", "proposed"
@@ -16,16 +18,19 @@ class AgentChatResponse(BaseModel):
     extra_data: Optional[Dict[str, Any]] = None
 
 class AgentApprovalRequest(BaseModel):
+    """Agentapprovalrequest."""
     workflow_id: UUID
     approved: bool
     overrides: Optional[Dict[str, Any]] = None
 
 class ConversationSessionOut(BaseModel):
+    """Conversationsessionout."""
     id: UUID
     created_at: datetime
     updated_at: datetime
 
 class ConversationMessageOut(BaseModel):
+    """Conversationmessageout."""
     id: UUID
     role: str
     content: Dict[str, Any]

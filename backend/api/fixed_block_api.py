@@ -15,6 +15,7 @@ async def list_fixed_blocks(
     user: User = Depends(get_current_user),
     repo: FixedBlockRepository = Depends(get_fixed_block_repository),
 ) -> list[FixedBlockResponse]:
+    """List fixed blocks."""
     return await repo.list_fixed_blocks(user.id) # type: ignore
 
 
@@ -24,12 +25,15 @@ async def create_fixed_block(
     user: User = Depends(get_current_user),
     repo: FixedBlockRepository = Depends(get_fixed_block_repository),
 ) -> FixedBlockResponse:
+    """Create fixed block."""
     block = FixedBlock(
         user_id=str(user.id), # type: ignore
         name=data.name,
         start_time=data.start_time,
         end_time=data.end_time,
-        days_of_week=data.days_of_week
+        days_of_week=data.days_of_week,
+        apply_all=data.apply_all,
+        template_ids=data.template_ids
     )
     return await repo.create(block)
 
@@ -41,6 +45,7 @@ async def update_fixed_block(
     user: User = Depends(get_current_user),
     repo: FixedBlockRepository = Depends(get_fixed_block_repository),
 ) -> FixedBlockResponse:
+    """Update fixed block."""
     block = await repo.get_fixed_block(user.id, block_id) # type: ignore
     if not block:
         raise HTTPException(status_code=404, detail="Fixed block not found")
@@ -55,6 +60,7 @@ async def delete_fixed_block(
     user: User = Depends(get_current_user),
     repo: FixedBlockRepository = Depends(get_fixed_block_repository),
 ):
+    """Delete fixed block."""
     block = await repo.get_fixed_block(user.id, block_id) # type: ignore
     if not block:
         raise HTTPException(status_code=404, detail="Fixed block not found")

@@ -1,8 +1,8 @@
-import { type FC, useEffect, useState } from 'react';
+import { type FC } from 'react';
 import { Settings2 } from 'lucide-react';
 import { TemplateCard } from './TemplateCard';
-import { fetchTemplates } from '../../api/templateApi';
 import { userApi } from '../../api/userApi';
+import { useTemplates } from '../../contexts/TemplateContext';
 
 interface TemplateListProps {
   profile: any;
@@ -11,22 +11,7 @@ interface TemplateListProps {
 }
 
 export const TemplateList: FC<TemplateListProps> = ({ profile, setProfile, setAppView }) => {
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await fetchTemplates();
-        setTemplates(data);
-      } catch (err) {
-        console.error('Failed to load templates for sidebar', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [profile?.active_planner_id]); // reload if active changes just in case
+  const { templates, loading } = useTemplates();
 
   const handleActivate = async (id: string) => {
     try {

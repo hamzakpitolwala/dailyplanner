@@ -9,6 +9,9 @@ interface ChatInputProps {
 export const ChatInput: FC<ChatInputProps> = ({ onSubmit, disabled = false }) => {
   const [text, setText] = useState('');
 
+  /**
+   * Handle Send.
+   */
   const handleSend = () => {
     if (text.trim() && !disabled) {
       onSubmit(text.trim());

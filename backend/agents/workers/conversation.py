@@ -9,7 +9,9 @@ from backend.services.llm_client import BaseLLMClient
 logger = logging.getLogger(__name__)
 
 class ConversationWorker(BaseWorker):
+    """Conversationworker."""
     def __init__(self, llm_client: BaseLLMClient):
+        """  init  ."""
         super().__init__(llm_client)
         self.allowed_tools = [] # No tools for general conversation
 

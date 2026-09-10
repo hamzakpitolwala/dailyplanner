@@ -46,11 +46,17 @@ export const MonthCalendar: FC<MonthCalendarProps> = ({ plannerDate, setPlannerD
     });
   }
 
+  /**
+   * Handle Prev Month.
+   */
   const handlePrevMonth = () => {
     if (isPrevMonthDisabled) return;
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   };
 
+  /**
+   * Handle Next Month.
+   */
   const handleNextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };

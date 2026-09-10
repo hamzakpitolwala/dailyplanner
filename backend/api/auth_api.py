@@ -21,6 +21,7 @@ async def register(
     user: UserCreate,
     service: AuthService = Depends(get_auth_service),
 ) -> UserResponse:
+    """Register."""
     try:
         result = await service.register(user.email, user.password, user.timezone)
     except ValueError as exc:
@@ -37,6 +38,7 @@ async def login(
     user: UserLogin,
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
+    """Login."""
     access_token = await service.login(user.email, user.password)
     if not access_token:
         raise HTTPException(
@@ -52,6 +54,7 @@ async def token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
+    """Token."""
     access_token = await service.login(form_data.username, form_data.password)
     if not access_token:
         raise HTTPException(
@@ -62,6 +65,7 @@ async def token(
 
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:
+    """Me."""
     return UserResponse.model_validate(user)
 
 
@@ -73,6 +77,7 @@ async def change_password(
     user: User = Depends(get_current_user),
     service: AuthService = Depends(get_auth_service),
 ):
+    """Change password."""
     try:
         await service.change_password(user.id, data.old_password, data.new_password)
         return {"detail": "Password updated successfully"}

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from backend.db.database import engine
 
 async def migrate():
+    """Migrate."""
     async with engine.begin() as conn:
         try:
             await conn.execute(text("ALTER TABLE template_tasks ALTER COLUMN target_time TYPE VARCHAR(8) USING target_time::VARCHAR(8);"))

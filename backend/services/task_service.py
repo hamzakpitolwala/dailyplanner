@@ -28,6 +28,7 @@ class TaskService:
         category_repo: CategoryRepository,
         user_repo: UserRepository,
     ):
+        """  init  ."""
         self.task_repo = task_repo
         self.category_repo = category_repo
         self.user_repo = user_repo
@@ -37,6 +38,7 @@ class TaskService:
     # ------------------------------------------------------------------
 
     async def list_categories(self, user_id: UUID) -> list[Category]:
+        """List categories."""
         return await self.category_repo.list_categories(user_id)
 
     async def get_category(self, user_id: UUID, category_id: UUID) -> Category | None:
@@ -44,17 +46,20 @@ class TaskService:
         return await self.category_repo.get_category(user_id, category_id)
 
     async def create_category(self, user_id: UUID, data: CategoryCreate) -> Category:
+        """Create category."""
         category = Category(user_id=str(user_id), **data.model_dump())
         return await self.category_repo.create(category)
 
     async def update_category(
         self, category: Category, data: CategoryUpdate
     ) -> Category:
+        """Update category."""
         return await self.category_repo.update(
             category, **data.model_dump(exclude_unset=True)
         )
 
     async def delete_category(self, category: Category) -> None:
+        """Delete category."""
         await self.category_repo.delete(category)
 
     # ------------------------------------------------------------------
@@ -71,16 +76,29 @@ class TaskService:
         skip: int = 0,
         limit: int = 100,
     ) -> list[Task]:
+        """List tasks."""
         return await self.task_repo.list_tasks(user_id, target_date, tz_offset, skip, limit)
+
+    async def list_task_history(
+        self,
+        user_id: UUID,
+        tz_offset: int = 0,
+        skip: int = 0,
+        limit: int = 1000,
+    ) -> list[Task]:
+        """List task history."""
+        return await self.task_repo.get_task_history(user_id, tz_offset, skip, limit)
 
     async def get_task_status_counts(
         self, user_id: UUID, start_date: datetime, end_date: datetime
     ) -> dict[str, int]:
+        """Get task status counts."""
         return await self.task_repo.get_task_status_counts(user_id, start_date, end_date)
 
 
 
     async def get_task(self, user_id: UUID, task_id: UUID) -> Task | None:
+        """Get task."""
         return await self.task_repo.get_task(user_id, task_id)
 
     async def _check_timing_conflict(
@@ -90,6 +108,7 @@ class TaskService:
         due_date: datetime | None,
         exclude_task_id: str | None = None,
     ) -> None:
+        """ check timing conflict."""
         conflict = await self.task_repo.check_timing_conflict(
             user_id, start_time, due_date, exclude_task_id
         )
@@ -97,6 +116,7 @@ class TaskService:
             raise ValueError("Time slot is already occupied by another task.")
 
     async def create_task(self, user_id: UUID, data: TaskCreate) -> Task:
+        """Create task."""
         payload = data.model_dump(exclude={"subtasks"})
         if "category_id" in payload and payload["category_id"]:
             payload["category_id"] = str(payload["category_id"])
@@ -128,6 +148,7 @@ class TaskService:
         return await self.get_task(user_id, task.id)
 
     async def update_task(self, task: Task, data: TaskUpdate) -> Task:
+        """Update task."""
         payload = data.model_dump(exclude_unset=True, exclude={"subtasks"})
 
         # Auto-set completed_at timestamp when status transitions to completed
@@ -156,9 +177,11 @@ class TaskService:
         return await self.task_repo.update(task, **payload)
 
     async def get_earliest_task_date(self, user_id: UUID) -> str:
+        """Get earliest task date."""
         return await self.task_repo.get_earliest_task_date(user_id)
 
     async def delete_task(self, task: Task) -> None:
+        """Delete task."""
         await self.task_repo.delete(task)
 
     # ------------------------------------------------------------------
@@ -169,6 +192,7 @@ class TaskService:
         self, user_id: UUID, tz_offset: int = 0
     ) -> list[Task]:
         # Determine start of current day in user's timezone, converted to UTC
+        """List pending checkins."""
         tz = timezone(timedelta(minutes=-tz_offset))
         now = datetime.now(tz)
         start_of_current_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -188,12 +212,15 @@ class TaskService:
         return await self.task_repo.list_pending_checkins(user_id)
 
     async def list_missed_reasons(self, user_id: UUID) -> list:
+        """List missed reasons."""
         return await self.task_repo.list_missed_reasons(user_id)
 
     async def list_alternate_activities(self, user_id: UUID) -> list:
+        """List alternate activities."""
         return await self.task_repo.list_alternate_activities(user_id)
 
     async def create_task_checkin(self, task: Task, data: TaskCheckinCreate) -> object:
+        """Create task checkin."""
         payload = data.model_dump(exclude_unset=True)
         if "missed_reason_id" in payload and payload["missed_reason_id"]:
             payload["missed_reason_id"] = str(payload["missed_reason_id"])
@@ -229,10 +256,12 @@ class TaskService:
     async def get_subtask(
         self, task_id: UUID, subtask_id: UUID
     ) -> ActivitySubtask | None:
+        """Get subtask."""
         return await self.task_repo.get_subtask(task_id, subtask_id)
 
     async def create_subtask(self, task_id: UUID, data: SubtaskCreate) -> ActivitySubtask:
         # SQLite compat: convert bools to ints
+        """Create subtask."""
         payload = data.model_dump(exclude_unset=True)
         if "is_completed" in payload and isinstance(payload["is_completed"], bool):
             payload["is_completed"] = 1 if payload["is_completed"] else 0
@@ -243,6 +272,7 @@ class TaskService:
     async def update_subtask(
         self, subtask: ActivitySubtask, data: SubtaskUpdate
     ) -> ActivitySubtask:
+        """Update subtask."""
         payload = data.model_dump(exclude_unset=True)
         
         # SQLite compat: convert bools to ints
@@ -257,4 +287,5 @@ class TaskService:
         return subtask
 
     async def delete_subtask(self, subtask: ActivitySubtask) -> None:
+        """Delete subtask."""
         await self.task_repo.delete_subtask(subtask)

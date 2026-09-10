@@ -3,17 +3,20 @@ from backend.db.repositories.analytics import AnalyticsRepository
 from backend.core.cache import CacheProvider
 
 class AnalyticsService:
+    """Analyticsservice."""
     def __init__(
         self, 
         analytics_repo: AnalyticsRepository, 
         cache_provider: Optional[CacheProvider] = None,
         cache_ttl: int = 300
     ):
+        """  init  ."""
         self.analytics_repo = analytics_repo
         self.cache = cache_provider
         self.ttl = cache_ttl
 
     async def _get_cached_or_fetch(self, cache_key: str, fetch_func):
+        """ get cached or fetch."""
         if self.cache:
             cached_data = await self.cache.get(cache_key)
             if cached_data is not None:
@@ -27,7 +30,9 @@ class AnalyticsService:
         return data
 
     async def get_overview(self, user_id: str = "global") -> Dict[str, Any]:
+        """Get overview."""
         async def fetch():
+            """Fetch."""
             rows = await self.analytics_repo.get_daily_activity_stats(user_id)
             
             trends = []
@@ -62,7 +67,9 @@ class AnalyticsService:
         return await self._get_cached_or_fetch(f"analytics:overview:{user_id}", fetch)
 
     async def get_time_patterns(self, user_id: str) -> Dict[str, Any]:
+        """Get time patterns."""
         async def fetch():
+            """Fetch."""
             time_rows = await self.analytics_repo.get_time_block_completion(user_id)
             time_blocks = [{"time_bucket": r.time_bucket, "completion_rate": r.completion_rate, "total_activities": r.total_activities} for r in time_rows]
 
@@ -77,7 +84,9 @@ class AnalyticsService:
         return await self._get_cached_or_fetch(f"analytics:time_patterns:{user_id}", fetch)
 
     async def get_calendar_conflicts(self, user_id: str = "global") -> List[Dict[str, Any]]:
+        """Get calendar conflicts."""
         async def fetch():
+            """Fetch."""
             rows = await self.analytics_repo.get_calendar_conflicts(user_id)
             return [
                 {
@@ -91,7 +100,9 @@ class AnalyticsService:
         return await self._get_cached_or_fetch(f"analytics:calendar_conflicts:{user_id}", fetch)
 
     async def get_focus_metrics(self, user_id: str = "global") -> List[Dict[str, Any]]:
+        """Get focus metrics."""
         async def fetch():
+            """Fetch."""
             rows = await self.analytics_repo.get_focus_metrics(user_id)
             return [
                 {
@@ -104,7 +115,9 @@ class AnalyticsService:
         return await self._get_cached_or_fetch(f"analytics:focus_metrics:{user_id}", fetch)
 
     async def get_ai_effectiveness(self, user_id: str = "global") -> List[Dict[str, Any]]:
+        """Get ai effectiveness."""
         async def fetch():
+            """Fetch."""
             rows = await self.analytics_repo.get_recommendation_effect(user_id)
             return [
                 {

@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def sync_alter_tables(connection):
+    """Sync alter tables."""
     from sqlalchemy import text
     dialect = connection.dialect.name
     if dialect == "postgresql":
@@ -98,6 +99,7 @@ from backend.db.analytics_views import AnalyticsViewMigrator
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Setup - sync our db metadata (models) with db
+    """Lifespan."""
     async with engine.begin() as conn:
         # Drop analytics views before schema migrations to avoid dependency locks
         await conn.run_sync(lambda connection: AnalyticsViewMigrator(connection).drop_views())
@@ -131,7 +133,9 @@ app.add_middleware(
 )
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Securityheadersmiddleware."""
     async def dispatch(self, request: Request, call_next):
+        """Dispatch."""
         response = await call_next(request)
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http: https:;"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -147,6 +151,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(Exception)
 async def standard_exception_handler(request: Request, exc: Exception):
+    """Standard exception handler."""
     import traceback
     with open("recent_error.txt", "w") as f:
         traceback.print_exc(file=f)
@@ -183,14 +188,17 @@ app.mount("/mcp", mcp.http_app(transport="sse"))
 @app.get("/health")
 @limiter.limit("10/minute")
 def health(request: Request):
+    """Health."""
     return {"status": "ok"}
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    """Favicon."""
     from fastapi.responses import Response
     return Response(status_code=204)
 
 @app.get("/.well-known/appspecific/com.chrome.devtools.json", include_in_schema=False)
 async def chrome_devtools():
+    """Chrome devtools."""
     from fastapi.responses import Response
     return Response(status_code=204)

@@ -8,13 +8,16 @@ class UserRepository(BaseRepository[User]):
     """Repository handling User operations."""
 
     def __init__(self, db):
+        """  init  ."""
         super().__init__(User, db)
 
     async def get_by_email(self, email: str) -> User | None:
+        """Get by email."""
         result = await self.db.execute(select(User).filter(User.email == email))
         return result.scalars().first()
 
     async def get_by_oauth_provider(self, provider: str, provider_id: str) -> User | None:
+        """Get by oauth provider."""
         result = await self.db.execute(
             select(User).filter(
                 User.auth_provider == provider,
@@ -28,15 +31,18 @@ class UserProfileRepository(BaseRepository[UserProfile]):
     """Repository handling UserProfile operations."""
 
     def __init__(self, db):
+        """  init  ."""
         super().__init__(UserProfile, db)
 
     async def get_by_user_id(self, user_id: UUID) -> UserProfile | None:
+        """Get by user id."""
         result = await self.db.execute(
             select(UserProfile).filter(UserProfile.user_id == str(user_id))
         )
         return result.scalars().first()
 
     async def get_by_username(self, username: str) -> UserProfile | None:
+        """Get by username."""
         result = await self.db.execute(
             select(UserProfile).filter(UserProfile.username == username)
         )

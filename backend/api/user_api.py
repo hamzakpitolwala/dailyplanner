@@ -14,6 +14,7 @@ async def get_profile(
     user: User = Depends(get_current_user),
     service: UserService = Depends(get_user_service),
 ):
+    """Get profile."""
     profile = await service.get_user_profile(user.id) # type: ignore
     return UserProfileResponse.model_validate(profile)
 
@@ -24,6 +25,7 @@ async def update_profile(
     user: User = Depends(get_current_user),
     service: UserService = Depends(get_user_service),
 ):
+    """Update profile."""
     try:
         profile = await service.update_user_profile(user.id, data) # type: ignore
         return UserProfileResponse.model_validate(profile)

@@ -43,6 +43,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   // Fetch user when token changes
   useEffect(() => {
+    /**
+     * Load User.
+     */
     const loadUser = async () => {
       if (!token) {
         setUser(null);
@@ -67,11 +70,17 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     loadUser();
   }, [token]);
 
+  /**
+   * Login.
+   */
   const login = (newToken: string) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
   };
 
+  /**
+   * Logout.
+   */
   const logout = () => {
     localStorage.removeItem('token');
     setToken('');

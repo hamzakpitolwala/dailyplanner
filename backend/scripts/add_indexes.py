@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv('../.env')
 
 async def main():
+    """Main."""
     db_url = os.getenv('DATABASE_URL')
     if '?' in db_url:
         db_url = db_url.split('?')[0]

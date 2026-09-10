@@ -15,6 +15,7 @@ from backend.services.analytics_service import AnalyticsService
 logger = logging.getLogger(__name__)
 
 async def _get_services():
+    """ get services."""
     db = SessionLocal()
     task_repo = TaskRepository(db)
     category_repo = CategoryRepository(db)

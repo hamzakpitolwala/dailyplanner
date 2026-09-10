@@ -9,12 +9,14 @@ from typing import List, Literal, Optional
 # ---------------------------------------------------------------------------
 
 class AIUserProfileBase(BaseModel):
+    """Aiuserprofilebase."""
     personality_type: str | None = Field(default=None, max_length=50)
     productivity_velocity: float = Field(default=1.0)
     ai_inferred_traits: dict | None = None
 
 
 class AIUserProfileResponse(AIUserProfileBase):
+    """Aiuserprofileresponse."""
     id: UUID
     user_id: UUID
     updated_at: datetime
@@ -27,6 +29,7 @@ class AIUserProfileResponse(AIUserProfileBase):
 # ---------------------------------------------------------------------------
 
 class AIRecommendationBase(BaseModel):
+    """Airecommendationbase."""
     kind: str = Field(max_length=50) # e.g. move_activity_time
     scope: str = Field(max_length=50) # template | daily_instance | activity | global
     
@@ -43,15 +46,18 @@ class AIRecommendationBase(BaseModel):
 
 
 class AIRecommendationCreate(AIRecommendationBase):
+    """Airecommendationcreate."""
     pass
 
 
 class AIRecommendationUpdate(BaseModel):
+    """Airecommendationupdate."""
     decision: Literal["accepted", "rejected", "ignored"]
     payload: dict | None = None  # user can optionally tweak the payload before accepting
 
 
 class AIRecommendationResponse(AIRecommendationBase):
+    """Airecommendationresponse."""
     id: UUID
     user_id: UUID
     created_at: datetime
@@ -60,12 +66,14 @@ class AIRecommendationResponse(AIRecommendationBase):
 
 
 class RecommendationOutcomeBase(BaseModel):
+    """Recommendationoutcomebase."""
     recommendation_id: UUID
     decision: str = Field(max_length=20)
     applied_change_ref: dict | None = None
 
 
 class RecommendationOutcomeResponse(RecommendationOutcomeBase):
+    """Recommendationoutcomeresponse."""
     id: UUID
     user_id: UUID
     decided_at: datetime
@@ -78,6 +86,7 @@ class RecommendationOutcomeResponse(RecommendationOutcomeBase):
 # ---------------------------------------------------------------------------
 
 class StarterActivity(BaseModel):
+    """Starteractivity."""
     title: str
     category: Optional[str] = None
     start_time: str  # "HH:MM" 24h
@@ -88,6 +97,7 @@ class StarterActivity(BaseModel):
 
 
 class StarterPlanner(BaseModel):
+    """Starterplanner."""
     template_name: str
     description: Optional[str] = None
     timezone: str
@@ -100,17 +110,20 @@ class StarterPlanner(BaseModel):
 # ---------------------------------------------------------------------------
 
 class InsightItem(BaseModel):
+    """Insightitem."""
     title: str
     detail: str
 
 
 class SuggestedChange(BaseModel):
+    """Suggestedchange."""
     title: str
     description: str
     confidence: float = Field(ge=0, le=1)
 
 
 class PlannerSummary(BaseModel):
+    """Plannersummary."""
     period_type: Literal["day", "week"]
     period_start: str  # ISO date
     period_end: str    # ISO date
@@ -121,6 +134,7 @@ class PlannerSummary(BaseModel):
 
 
 class PlannerSummaryResponse(PlannerSummary):
+    """Plannersummaryresponse."""
     id: Optional[UUID] = None # None for transient daily summaries
     created_at: Optional[datetime] = None
 
@@ -132,15 +146,18 @@ class PlannerSummaryResponse(PlannerSummary):
 # ---------------------------------------------------------------------------
 
 class ChatMessage(BaseModel):
+    """Chatmessage."""
     role: Literal["user", "assistant"]
     content: str
 
 
 class ChatRequest(BaseModel):
+    """Chatrequest."""
     messages: List[ChatMessage]
 
 
 class ChatResponse(BaseModel):
+    """Chatresponse."""
     reply: str
     structuredType: Optional[str] = None
     structuredData: Optional[dict] = None

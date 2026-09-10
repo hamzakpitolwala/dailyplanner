@@ -24,10 +24,12 @@ router = APIRouter(prefix="/templates", tags=["templates"])
 
 @router.get("", response_model=list[PlannerTemplateResponse])
 async def list_templates(
+    active_id: str | None = None,
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> list[PlannerTemplateResponse]:
-    return await service.list_templates(user.id) #type: ignore
+    """Retrieve a list of all planner templates for the current user."""
+    return await service.list_templates(user.id, active_id) #type: ignore
 
 
 @router.post("", response_model=PlannerTemplateResponse, status_code=status.HTTP_201_CREATED)
@@ -36,6 +38,7 @@ async def create_template(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> PlannerTemplateResponse:
+    """Create a new planner template for the user."""
     return await service.create_template(user.id, payload) #type: ignore
 
 
@@ -45,6 +48,7 @@ async def get_template(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> PlannerTemplateResponse:
+    """Retrieve a specific planner template by ID."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(
@@ -60,6 +64,7 @@ async def update_template(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> PlannerTemplateResponse:
+    """Update an existing planner template with new details."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(
@@ -74,6 +79,7 @@ async def delete_template(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> None:
+    """Delete a planner template by ID."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(
@@ -124,6 +130,7 @@ async def create_template_task(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> TemplateTaskResponse:
+    """Add a new task definition to an existing planner template."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(
@@ -140,6 +147,7 @@ async def update_template_task(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> TemplateTaskResponse:
+    """Modify an existing task definition within a planner template."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(
@@ -161,6 +169,7 @@ async def delete_template_task(
     user: User = Depends(get_current_user),
     service: TemplateService = Depends(get_template_service),
 ) -> None:
+    """Remove a task definition from a planner template."""
     template = await service.get_template(user.id, template_id) #type: ignore
     if template is None:
         raise HTTPException(

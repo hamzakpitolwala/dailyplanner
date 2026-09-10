@@ -8,20 +8,24 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class CategoryBase(BaseModel):
+    """Categorybase."""
     name: str = Field(min_length=1, max_length=50)
     color_hex: str = Field(default="#FFFFFF", min_length=7, max_length=7)
 
 
 class CategoryCreate(CategoryBase):
+    """Categorycreate."""
     pass
 
 
 class CategoryUpdate(BaseModel):
+    """Categoryupdate."""
     name: str | None = Field(default=None, min_length=1, max_length=50)
     color_hex: str | None = Field(default=None, min_length=7, max_length=7)
 
 
 class CategoryResponse(CategoryBase):
+    """Categoryresponse."""
     id: UUID
     user_id: UUID
     created_at: datetime
@@ -34,17 +38,21 @@ class CategoryResponse(CategoryBase):
 # ---------------------------------------------------------------------------
 
 class SubtaskBase(BaseModel):
+    """Subtaskbase."""
     title: str = Field(min_length=1, max_length=255)
     is_completed: bool = False
 
 class SubtaskCreate(SubtaskBase):
+    """Subtaskcreate."""
     pass
 
 class SubtaskUpdate(BaseModel):
+    """Subtaskupdate."""
     title: str | None = Field(default=None, min_length=1, max_length=255)
     is_completed: bool | None = None
 
 class SubtaskResponse(SubtaskBase):
+    """Subtaskresponse."""
     id: UUID
     task_id: UUID
     created_at: datetime
@@ -58,6 +66,7 @@ class SubtaskResponse(SubtaskBase):
 # ---------------------------------------------------------------------------
 
 class TaskBase(BaseModel):
+    """Taskbase."""
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     priority: int = Field(default=1, ge=1)
@@ -76,11 +85,13 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
+    """Taskcreate."""
     category_id: UUID | None = None
     subtasks: list[SubtaskCreate] = Field(default_factory=list)
 
 
 class TaskUpdate(BaseModel):
+    """Taskupdate."""
     category_id: UUID | None = None
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
@@ -100,6 +111,7 @@ class TaskUpdate(BaseModel):
 
 
 class TaskResponse(TaskBase):
+    """Taskresponse."""
     id: UUID
     user_id: UUID
     category_id: UUID | None = None
@@ -118,6 +130,7 @@ class TaskResponse(TaskBase):
 # ---------------------------------------------------------------------------
 
 class MissedReasonResponse(BaseModel):
+    """Missedreasonresponse."""
     id: UUID
     name: str
     user_id: UUID | None = None
@@ -126,6 +139,7 @@ class MissedReasonResponse(BaseModel):
 
 
 class AlternateActivityResponse(BaseModel):
+    """Alternateactivityresponse."""
     id: UUID
     name: str
     user_id: UUID | None = None
@@ -134,6 +148,7 @@ class AlternateActivityResponse(BaseModel):
 
 
 class TaskCheckinCreate(BaseModel):
+    """Taskcheckincreate."""
     status: str = Field(max_length=20)
     missed_reason_id: UUID | None = None
     alternate_activity_id: UUID | None = None
@@ -141,6 +156,7 @@ class TaskCheckinCreate(BaseModel):
 
 
 class TaskCheckinResponse(BaseModel):
+    """Taskcheckinresponse."""
     id: UUID
     task_id: UUID
     status: str
@@ -158,6 +174,7 @@ class TaskCheckinResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class UserProfileBase(BaseModel):
+    """Userprofilebase."""
     username: str | None = None
     dob: str | None = None
     gender: str | None = None
@@ -174,10 +191,12 @@ class UserProfileBase(BaseModel):
 
 
 class UserProfileCreate(UserProfileBase):
+    """Userprofilecreate."""
     pass
 
 
 class UserProfileUpdate(BaseModel):
+    """Userprofileupdate."""
     username: str | None = None
     dob: str | None = None
     gender: str | None = None
@@ -194,6 +213,7 @@ class UserProfileUpdate(BaseModel):
 
 
 class UserProfileResponse(UserProfileBase):
+    """Userprofileresponse."""
     id: UUID
     user_id: UUID
     updated_at: datetime | None = None
@@ -207,24 +227,32 @@ class UserProfileResponse(UserProfileBase):
 # ---------------------------------------------------------------------------
 
 class FixedBlockBase(BaseModel):
+    """Fixedblockbase."""
     name: str = Field(min_length=1, max_length=255)
     start_time: str = Field(min_length=5, max_length=5) # HH:MM
     end_time: str = Field(min_length=5, max_length=5)   # HH:MM
     days_of_week: list[int]
+    apply_all: bool = True
+    template_ids: list[str] = Field(default_factory=list)
 
 
 class FixedBlockCreate(FixedBlockBase):
+    """Fixedblockcreate."""
     pass
 
 
 class FixedBlockUpdate(BaseModel):
+    """Fixedblockupdate."""
     name: str | None = Field(default=None, min_length=1, max_length=255)
     start_time: str | None = Field(default=None, min_length=5, max_length=5)
     end_time: str | None = Field(default=None, min_length=5, max_length=5)
     days_of_week: list[int] | None = None
+    apply_all: bool | None = None
+    template_ids: list[str] | None = None
 
 
 class FixedBlockResponse(FixedBlockBase):
+    """Fixedblockresponse."""
     id: UUID
     user_id: UUID
 

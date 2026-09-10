@@ -4,6 +4,7 @@ import { OnboardingFlow } from '../components/onboarding/OnboardingFlow';
 import { PlannerSelection } from '../components/onboarding/PlannerSelection';
 import { userApi } from '../api/userApi';
 import { MainLayout } from '../components/Layout/MainLayout';
+import { TemplateProvider } from '../contexts/TemplateContext';
 
 const PlannerPage = lazy(() => import('./PlannerPage').then(m => ({ default: m.PlannerPage })));
 const DashboardPage = lazy(() => import('./DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -57,52 +58,54 @@ export const AppShell = () => {
   }
 
   return (
-    <MainLayout 
-      activeView={activeView} 
-      setActiveView={(v) => {
-        setActiveView(v);
-        setAppView(v);
-      }}
-      profile={profile}
-      setProfile={setProfile}
-      setAppView={setAppView}
-    >
-      {message && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-zinc-800 text-white rounded-lg shadow-lg text-sm">
-          {message}
-          <button onClick={() => setMessage('')} className="ml-4 opacity-70 hover:opacity-100">&times;</button>
+    <TemplateProvider profile={profile}>
+      <MainLayout 
+        activeView={activeView} 
+        setActiveView={(v) => {
+          setActiveView(v);
+          setAppView(v);
+        }}
+        profile={profile}
+        setProfile={setProfile}
+        setAppView={setAppView}
+      >
+        {message && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-zinc-800 text-white rounded-lg shadow-lg text-sm">
+            {message}
+            <button onClick={() => setMessage('')} className="ml-4 opacity-70 hover:opacity-100">&times;</button>
+          </div>
+        )}
+
+        <div className="flex-1 w-full h-full relative overflow-hidden">
+          <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading view...</div>}>
+            {appView === 'planner' && (
+              <PlannerPage setMessage={setMessage} profile={profile} setAppView={setAppView} />
+            )}
+            
+            {appView === 'dashboard' && (
+              <DashboardPage />
+            )}
+
+            {appView === 'history' && (
+              <HistoryPage />
+            )}
+
+            {appView === 'templates' && (
+              <ManageTemplatePage 
+                activeView={activeView}
+                setAppView={setAppView}
+                profile={profile}
+                setProfile={setProfile}
+                setMessage={setMessage}
+              />
+            )}
+
+            {appView === 'profile' && (
+              <UserProfilePage profile={profile} setProfile={setProfile} setMessage={setMessage} setAppView={setAppView} />
+            )}
+          </Suspense>
         </div>
-      )}
-
-      <div className="flex-1 w-full h-full relative overflow-hidden">
-        <Suspense fallback={<div className="p-8 text-center text-zinc-500">Loading view...</div>}>
-          {appView === 'planner' && (
-            <PlannerPage setMessage={setMessage} profile={profile} setAppView={setAppView} />
-          )}
-          
-          {appView === 'dashboard' && (
-            <DashboardPage />
-          )}
-
-          {appView === 'history' && (
-            <HistoryPage />
-          )}
-
-          {appView === 'templates' && (
-            <ManageTemplatePage 
-              activeView={activeView}
-              setAppView={setAppView}
-              profile={profile}
-              setProfile={setProfile}
-              setMessage={setMessage}
-            />
-          )}
-
-          {appView === 'profile' && (
-            <UserProfilePage profile={profile} setProfile={setProfile} setMessage={setMessage} setAppView={setAppView} />
-          )}
-        </Suspense>
-      </div>
-    </MainLayout>
+      </MainLayout>
+    </TemplateProvider>
   );
 };

@@ -10,6 +10,7 @@ class TaskRepository(BaseRepository[Task]):
     """Repository handling Task and related sub-entities (Subtasks, Checkins)."""
 
     def __init__(self, db):
+        """  init  ."""
         super().__init__(Task, db)
 
     async def list_tasks(
@@ -20,6 +21,7 @@ class TaskRepository(BaseRepository[Task]):
         skip: int = 0,
         limit: int = 100,
     ) -> list[Task]:
+        """List tasks."""
         query = (
             select(Task)
             .options(
@@ -49,9 +51,40 @@ class TaskRepository(BaseRepository[Task]):
         )
         return list(result.scalars().all())
 
+    async def get_task_history(
+        self,
+        user_id: UUID,
+        tz_offset: int = 0,
+        skip: int = 0,
+        limit: int = 1000,
+    ) -> list[Task]:
+        """Fetch past tasks ordered by date descending."""
+        tz = timezone(timedelta(minutes=-tz_offset))
+        now = datetime.now(tz)
+        start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        query = (
+            select(Task)
+            .options(
+                selectinload(Task.category),
+                selectinload(Task.checkins).selectinload(TaskCheckin.missed_reason),
+                selectinload(Task.checkins).selectinload(TaskCheckin.alternate_activity),
+                selectinload(Task.subtasks),
+            )
+            .filter(
+                Task.user_id == str(user_id), 
+                Task.visibility != "hidden",
+                Task.due_date < start_of_today
+            )
+            .order_by(Task.due_date.desc().nulls_last())
+        )
+        result = await self.db.execute(query.offset(skip).limit(limit))
+        return list(result.scalars().all())
+
     async def get_task_status_counts(
         self, user_id: UUID, start_date: datetime, end_date: datetime
     ) -> dict[str, int]:
+        """Get task status counts."""
         query = (
             select(Task.status, func.count(Task.id))
             .filter(
@@ -66,6 +99,7 @@ class TaskRepository(BaseRepository[Task]):
         return {status: count for status, count in result.all()}
 
     async def get_task_by_external_event(self, user_id: UUID, external_event_id: str) -> Task | None:
+        """Get task by external event."""
         result = await self.db.execute(
             select(Task).filter(
                 Task.user_id == str(user_id),
@@ -75,6 +109,7 @@ class TaskRepository(BaseRepository[Task]):
         return result.scalars().first()
 
     async def get_tasks_by_external_events(self, user_id: UUID, external_event_ids: list[str]) -> list[Task]:
+        """Get tasks by external events."""
         if not external_event_ids:
             return []
         result = await self.db.execute(
@@ -86,6 +121,7 @@ class TaskRepository(BaseRepository[Task]):
         return list(result.scalars().all())
 
     async def get_task(self, user_id: UUID, task_id: UUID) -> Task | None:
+        """Get task."""
         result = await self.db.execute(
             select(Task)
             .options(
@@ -105,6 +141,7 @@ class TaskRepository(BaseRepository[Task]):
         due_date: datetime | None,
         exclude_task_id: str | None = None,
     ) -> Task | None:
+        """Check timing conflict."""
         if not start_time or not due_date:
             return None
 
@@ -123,6 +160,7 @@ class TaskRepository(BaseRepository[Task]):
 
     async def get_earliest_task_date(self, user_id: UUID) -> str:
         # Get the earliest task date
+        """Get earliest task date."""
         query = select(func.min(Task.due_date)).filter(Task.user_id == str(user_id))
         result = await self.db.execute(query)
         earliest_task_date = result.scalar()
@@ -146,6 +184,7 @@ class TaskRepository(BaseRepository[Task]):
     async def get_past_pending_tasks(
         self, user_id: UUID, start_of_current_day: datetime
     ) -> list[Task]:
+        """Get past pending tasks."""
         result = await self.db.execute(
             select(Task)
             .options(selectinload(Task.subtasks))
@@ -158,6 +197,7 @@ class TaskRepository(BaseRepository[Task]):
         return list(result.scalars().all())
 
     async def list_pending_checkins(self, user_id: UUID) -> list[Task]:
+        """List pending checkins."""
         result = await self.db.execute(
             select(Task)
             .options(
@@ -177,6 +217,7 @@ class TaskRepository(BaseRepository[Task]):
         return list(result.scalars().all())
 
     async def list_missed_reasons(self, user_id: UUID) -> list[MissedReason]:
+        """List missed reasons."""
         result = await self.db.execute(
             select(MissedReason).filter(
                 (MissedReason.user_id == str(user_id)) | (MissedReason.user_id == None)
@@ -185,6 +226,7 @@ class TaskRepository(BaseRepository[Task]):
         return list(result.scalars().all())
 
     async def list_alternate_activities(self, user_id: UUID) -> list[AlternateActivity]:
+        """List alternate activities."""
         result = await self.db.execute(
             select(AlternateActivity).filter(
                 (AlternateActivity.user_id == str(user_id)) | (AlternateActivity.user_id == None)
@@ -194,6 +236,7 @@ class TaskRepository(BaseRepository[Task]):
 
     # Subtask specific operations
     async def get_subtask(self, task_id: UUID, subtask_id: UUID) -> ActivitySubtask | None:
+        """Get subtask."""
         result = await self.db.execute(
             select(ActivitySubtask).filter(
                 ActivitySubtask.id == str(subtask_id),
@@ -203,12 +246,14 @@ class TaskRepository(BaseRepository[Task]):
         return result.scalars().first()
 
     async def create_subtask(self, subtask: ActivitySubtask) -> ActivitySubtask:
+        """Create subtask."""
         self.db.add(subtask)
         await self.db.commit()
         await self.db.refresh(subtask)
         return subtask
 
     async def delete_subtask(self, subtask: ActivitySubtask) -> None:
+        """Delete subtask."""
         await self.db.delete(subtask)
         await self.db.commit()
 
@@ -217,13 +262,16 @@ class CategoryRepository(BaseRepository[Category]):
     """Repository handling Category operations."""
 
     def __init__(self, db):
+        """  init  ."""
         super().__init__(Category, db)
 
     async def list_categories(self, user_id: UUID) -> list[Category]:
+        """List categories."""
         result = await self.db.execute(select(Category).filter(Category.user_id == str(user_id)))
         return list(result.scalars().all())
 
     async def get_category(self, user_id: UUID, category_id: UUID) -> Category | None:
+        """Get category."""
         result = await self.db.execute(
             select(Category).filter(
                 Category.id == str(category_id), Category.user_id == str(user_id)
@@ -232,6 +280,7 @@ class CategoryRepository(BaseRepository[Category]):
         return result.scalars().first()
 
     async def get_by_name(self, user_id: UUID, name: str) -> Category | None:
+        """Get by name."""
         result = await self.db.execute(
             select(Category).filter(Category.user_id == str(user_id), Category.name == name)
         )

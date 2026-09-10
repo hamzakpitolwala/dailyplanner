@@ -4,7 +4,9 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 class VerificationLayer:
+    """Verificationlayer."""
     def __init__(self):
+        """  init  ."""
         pass
 
     def verify_action(self, user_id: str, action_data: Dict[str, Any]) -> Dict[str, Any]:

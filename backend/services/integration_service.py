@@ -9,9 +9,11 @@ class IntegrationService:
     """Service layer for third-party OAuth integrations and external event syncing."""
 
     def __init__(self, integration_repo: IntegrationRepository):
+        """  init  ."""
         self.integration_repo = integration_repo
 
     async def get_oauth_tokens(self, user_id: UUID, provider: str) -> UserOAuthToken | None:
+        """Get oauth tokens."""
         return await self.integration_repo.get_oauth_token(user_id, provider)
 
     async def save_oauth_tokens(
@@ -23,16 +25,19 @@ class IntegrationService:
         scopes: list[str],
         expires_at,
     ) -> UserOAuthToken:
+        """Save oauth tokens."""
         return await self.integration_repo.upsert_oauth_token(
             user_id, provider, access_token, refresh_token, scopes, expires_at
         )
 
     async def disconnect_provider(self, user_id: UUID, provider: str) -> bool:
+        """Disconnect provider."""
         return await self.integration_repo.delete_oauth_token(user_id, provider)
 
     async def sync_external_events(
         self, user_id: UUID, events: list[ExternalSyncedEventCreate]
     ) -> list[ExternalSyncedEvent]:
+        """Sync external events."""
         if not events:
             return []
 

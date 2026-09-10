@@ -9,10 +9,13 @@ from backend.schemas.intent_schema import IntentClassification, Intent
 logger = logging.getLogger(__name__)
 
 class Orchestrator:
+    """Orchestrator."""
     def __init__(self, llm_client: BaseLLMClient):
+        """  init  ."""
         self.validator = LLMResponseValidator(llm_client)
 
     async def classify_intent(self, user_message: str) -> IntentClassification:
+        """Classify intent."""
         system_prompt = f"""
 You are the Orchestrator for DailyPlanner AI. Your job is to classify the user's intent based on their message.
 The current date and time is {datetime.now(timezone.utc).isoformat()}.

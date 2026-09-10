@@ -19,6 +19,9 @@ interface PastTaskCardProps {
 }
 
 export const PastTaskCard: FC<PastTaskCardProps> = ({ task, onDelete }) => {
+  /**
+   * Format Time.
+   */
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
     return new Date(isoString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -40,6 +43,9 @@ export const PastTaskCard: FC<PastTaskCardProps> = ({ task, onDelete }) => {
     checkinStatus = isCompleted ? "completed" : task.status;
   }
 
+  /**
+   * Format Status.
+   */
   const formatStatus = (status: string) => {
     return status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };

@@ -8,11 +8,13 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class UserOAuthTokenBase(BaseModel):
+    """Useroauthtokenbase."""
     provider: str = Field(max_length=50)
     scopes: list[str]
 
 
 class UserOAuthTokenResponse(UserOAuthTokenBase):
+    """Useroauthtokenresponse."""
     id: UUID
     user_id: UUID
     expires_at: datetime
@@ -26,6 +28,7 @@ class UserOAuthTokenResponse(UserOAuthTokenBase):
 # ---------------------------------------------------------------------------
 
 class ExternalSyncedEventBase(BaseModel):
+    """Externalsyncedeventbase."""
     source_provider: str = Field(default="google", max_length=50)
     external_id: str = Field(max_length=255)
     calendar_id: str = Field(default="primary", max_length=255)
@@ -44,10 +47,12 @@ class ExternalSyncedEventBase(BaseModel):
 
 
 class ExternalSyncedEventCreate(ExternalSyncedEventBase):
+    """Externalsyncedeventcreate."""
     pass
 
 
 class ExternalSyncedEventResponse(ExternalSyncedEventBase):
+    """Externalsyncedeventresponse."""
     id: UUID
     user_id: UUID
     last_synced_at: datetime | None = None

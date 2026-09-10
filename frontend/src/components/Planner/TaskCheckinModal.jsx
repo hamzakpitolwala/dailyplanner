@@ -20,6 +20,9 @@ export const TaskCheckinModal = ({
   const [alternateActivityId, setAlternateActivityId] = useState('');
   const [notes, setNotes] = useState('');
   
+  /**
+   * Get Local Time.
+   */
   const getLocalTime = (isoString) => {
     if (!isoString) return '';
     return new Date(isoString).toTimeString().substring(0, 5);
@@ -31,6 +34,9 @@ export const TaskCheckinModal = ({
   const [error, setError] = useState('');
 
   useEffect(() => {
+    /**
+     * Load Options.
+     */
     const loadOptions = async () => {
       try {
         if (task.requires_reason) {
@@ -48,6 +54,9 @@ export const TaskCheckinModal = ({
     loadOptions();
   }, [task, setMessage]);
 
+  /**
+   * Handle Submit.
+   */
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');

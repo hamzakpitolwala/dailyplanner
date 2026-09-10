@@ -20,7 +20,9 @@ _context_cache: Dict[str, Dict[str, Any]] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
 class PersonalizedChatAgent:
+    """Personalizedchatagent."""
     def __init__(self):
+        """  init  ."""
         self.llm_client = OllamaClient()
 
     async def _fetch_context_str(
@@ -31,6 +33,7 @@ class PersonalizedChatAgent:
         fixed_block_repo: FixedBlockRepository
     ) -> str:
         # Fetch profile
+        """ fetch context str."""
         profile = await user_service.get_user_profile(user_id)
         profile_str = ""
         if profile:
@@ -64,6 +67,7 @@ class PersonalizedChatAgent:
         task_service: TaskService, 
         fixed_block_repo: FixedBlockRepository
     ) -> str:
+        """Get or fetch context."""
         uid_str = str(user_id)
         now = time.time()
         
@@ -94,6 +98,7 @@ class PersonalizedChatAgent:
         task_service: TaskService,
         fixed_block_repo: FixedBlockRepository
     ) -> Tuple[str, str | None, dict | None]:
+        """Chat."""
         context_str = await self.get_or_fetch_context(user_id, user_service, task_service, fixed_block_repo)
         
         system_prompt = (

@@ -2,6 +2,7 @@ from typing import List, Literal, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 class Intent(BaseModel):
+    """Intent."""
     type: Literal["planner_change", "insight", "conversation", "clarification", "unsupported"] = Field(
         description="The category of the intent."
     )
@@ -31,4 +32,5 @@ class Intent(BaseModel):
     )
 
 class IntentClassification(BaseModel):
+    """Intentclassification."""
     intents: List[Intent] = Field(description="List of identified intents from the user's message.")

@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class WorkflowState(str, Enum):
+    """Workflowstate."""
     RECEIVED = "RECEIVED"
     CLASSIFIED = "CLASSIFIED"
     CONTEXT_RETRIEVED = "CONTEXT_RETRIEVED"
@@ -20,10 +21,13 @@ class WorkflowState(str, Enum):
     FAILED = "FAILED"
 
 class StateMachine:
+    """Statemachine."""
     def __init__(self, db: AsyncSession):
+        """  init  ."""
         self.db = db
 
     async def create_workflow(self, user_id: UUID, conversation_id: Optional[UUID] = None) -> WorkflowRun:
+        """Create workflow."""
         run = WorkflowRun(
             user_id=user_id,
             conversation_id=conversation_id,
@@ -35,10 +39,12 @@ class StateMachine:
         return run
 
     async def get_workflow(self, run_id: UUID) -> Optional[WorkflowRun]:
+        """Get workflow."""
         result = await self.db.execute(select(WorkflowRun).where(WorkflowRun.id == run_id))
         return result.scalar_one_or_none()
 
     async def transition_state(self, run_id: UUID, new_state: WorkflowState, updates: Dict[str, Any] = None) -> WorkflowRun:
+        """Transition state."""
         run = await self.get_workflow(run_id)
         if not run:
             raise ValueError(f"WorkflowRun {run_id} not found")

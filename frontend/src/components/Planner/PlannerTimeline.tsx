@@ -10,6 +10,7 @@ import {
 } from './TimelineUtils';
 
 import { Task, FixedBlock } from '../../types';
+import { useTemplates } from '../../contexts/TemplateContext';
 
 interface PlannerTimelineProps {
   tasks: Task[];
@@ -38,6 +39,9 @@ function calculateLayouts(tasksToLayout: Task[]): Record<string, { left: number;
   let currentCluster: Task[] = [];
   let clusterEnd = 0;
 
+  /**
+   * Process Cluster.
+   */
   const processCluster = (cluster: Task[]) => {
     const columns: Task[][] = [];
     for (const t of cluster) {
@@ -112,10 +116,17 @@ const PlannerTimelineComponent: FC<PlannerTimelineProps> = ({
     }
   }, []);
 
+  const { activeTemplate } = useTemplates();
+
   const activeBlocks = useMemo(() => {
     const dayOfWeek = new Date(plannerDate).getDay();
-    return (fixedBlocks || []).filter(b => b.days_of_week.includes(dayOfWeek));
-  }, [fixedBlocks, plannerDate]);
+    return (fixedBlocks || []).filter(b => {
+      if (!b.days_of_week.includes(dayOfWeek)) return false;
+      if (b.apply_all) return true;
+      if (activeTemplate && b.template_ids?.includes(activeTemplate.id)) return true;
+      return false;
+    });
+  }, [fixedBlocks, plannerDate, activeTemplate]);
 
   /**
    * Pre-compute the Set of task IDs that fall entirely inside a fixed block.

@@ -16,6 +16,7 @@ class AuthService:
     """Handles user registration, authentication, and OAuth account linking."""
 
     def __init__(self, user_repo: UserRepository):
+        """  init  ."""
         self.user_repo = user_repo
 
     async def register(
@@ -77,6 +78,7 @@ class AuthService:
         username: str | None = None,
     ) -> User:
         # 1. Lookup by provider identity (most specific)
+        """Find or create oauth user."""
         user = await self.user_repo.get_by_oauth_provider(provider, provider_id)
         if user:
             return user

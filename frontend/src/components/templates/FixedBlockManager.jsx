@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { styles } from '../../utils/styles';
-import { fetchFixedBlocks, createFixedBlock, deleteFixedBlock } from '../../api/fixedBlockApi';
+import { fetchFixedBlocks, createFixedBlock, updateFixedBlock, deleteFixedBlock } from '../../api/fixedBlockApi';
+import { useTemplates } from '../../contexts/TemplateContext';
 
 const DAYS_OF_WEEK = [
   { value: 1, label: 'Mon' },
@@ -18,8 +19,12 @@ export const FixedBlockManager = ({ setMessage }) => {
     name: '',
     start_time: '08:00',
     end_time: '17:00',
-    days_of_week: [1, 2, 3, 4, 5] // Default Mon-Fri
+    days_of_week: [1, 2, 3, 4, 5],
+    apply_all: true,
+    template_ids: []
   });
+  const [editingId, setEditingId] = useState(null);
+  const { templates } = useTemplates();
 
   const loadBlocks = async () => {
     try {
@@ -45,6 +50,17 @@ export const FixedBlockManager = ({ setMessage }) => {
     });
   };
 
+  const handleTemplateToggle = (templateId) => {
+    setFormData(prev => {
+      const ids = [...prev.template_ids];
+      if (ids.includes(templateId)) {
+        return { ...prev, template_ids: ids.filter(id => id !== templateId) };
+      } else {
+        return { ...prev, template_ids: [...ids, templateId] };
+      }
+    });
+  };
+
   const submitBlock = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
@@ -53,13 +69,50 @@ export const FixedBlockManager = ({ setMessage }) => {
       return;
     }
     try {
-      await createFixedBlock(formData);
-      setFormData({ ...formData, name: '' }); // reset name
+      if (editingId) {
+        await updateFixedBlock(editingId, formData);
+        setMessage('Fixed block updated.');
+      } else {
+        await createFixedBlock(formData);
+        setMessage('Fixed block created.');
+      }
+      setFormData({
+        name: '',
+        start_time: '08:00',
+        end_time: '17:00',
+        days_of_week: [1, 2, 3, 4, 5],
+        apply_all: true,
+        template_ids: []
+      });
+      setEditingId(null);
       await loadBlocks();
-      setMessage('Fixed block created.');
     } catch (error) {
       setMessage(error.message);
     }
+  };
+
+  const handleEdit = (block) => {
+    setEditingId(block.id);
+    setFormData({
+      name: block.name,
+      start_time: block.start_time,
+      end_time: block.end_time,
+      days_of_week: block.days_of_week,
+      apply_all: block.apply_all,
+      template_ids: block.template_ids || []
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData({
+      name: '',
+      start_time: '08:00',
+      end_time: '17:00',
+      days_of_week: [1, 2, 3, 4, 5],
+      apply_all: true,
+      template_ids: []
+    });
   };
 
   const handleDelete = async (id) => {
@@ -127,7 +180,50 @@ export const FixedBlockManager = ({ setMessage }) => {
           </div>
         </div>
 
-        <button style={styles.primaryButton} type="submit">Create Block</button>
+        <div style={{ marginTop: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold' }}>
+            <input
+              type="checkbox"
+              checked={formData.apply_all}
+              onChange={(e) => setFormData(prev => ({ ...prev, apply_all: e.target.checked }))}
+            />
+            Apply to All Templates
+          </label>
+        </div>
+
+        {!formData.apply_all && (
+          <div style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+            <label style={styles.label}>Select Templates</label>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {templates.map(t => (
+                <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.template_ids.includes(t.id)}
+                    onChange={() => handleTemplateToggle(t.id)}
+                  />
+                  {t.name}
+                </label>
+              ))}
+              {templates.length === 0 && <span style={styles.muted}>No templates available</span>}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button style={styles.primaryButton} type="submit">
+            {editingId ? 'Update Block' : 'Create Block'}
+          </button>
+          {editingId && (
+            <button 
+              type="button" 
+              style={{ ...styles.button, backgroundColor: '#f3f4f6', color: '#374151' }} 
+              onClick={cancelEdit}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
       <div style={styles.activityList}>
@@ -141,10 +237,18 @@ export const FixedBlockManager = ({ setMessage }) => {
               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
                 Days: {block.days_of_week.map(d => DAYS_OF_WEEK.find(x => x.value === d)?.label).join(', ')}
               </p>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#6b7280' }}>
+                Templates: {block.apply_all ? 'All Templates' : (block.template_ids && block.template_ids.length > 0 ? block.template_ids.map(id => templates.find(t => t.id === id)?.name || 'Unknown').join(', ') : 'None')}
+              </p>
             </div>
-            <button style={{ ...styles.button, backgroundColor: '#fee2e2', color: '#b91c1c' }} onClick={() => handleDelete(block.id)}>
-              Delete
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button style={{ ...styles.button, backgroundColor: '#f3f4f6', color: '#374151' }} onClick={() => handleEdit(block)}>
+                Edit
+              </button>
+              <button style={{ ...styles.button, backgroundColor: '#fee2e2', color: '#b91c1c' }} onClick={() => handleDelete(block.id)}>
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>

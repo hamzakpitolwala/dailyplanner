@@ -12,10 +12,12 @@ from backend.db.database import Base, PortableUUID
 
 
 def _uuid() -> str:
+    """ uuid."""
     return str(uuid.uuid4())
 
 
 class AIUserProfile(Base):
+    """Aiuserprofile."""
     __tablename__ = "ai_user_profiles"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -36,6 +38,7 @@ class AIUserProfile(Base):
 
 
 class AIRecommendation(Base):
+    """Airecommendation."""
     __tablename__ = "ai_recommendations"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -67,6 +70,7 @@ class AIRecommendation(Base):
 
 
 class RecommendationOutcome(Base):
+    """Recommendationoutcome."""
     __tablename__ = "recommendation_outcomes"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -91,6 +95,7 @@ class RecommendationOutcome(Base):
     user = relationship("User")
 
 class AISummary(Base):
+    """Aisummary."""
     __tablename__ = "ai_summaries"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)

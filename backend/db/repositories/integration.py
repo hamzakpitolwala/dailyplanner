@@ -8,9 +8,11 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
     """Repository handling OAuth integration tokens and event syncs."""
 
     def __init__(self, db):
+        """  init  ."""
         super().__init__(UserOAuthToken, db)
 
     async def get_oauth_token(self, user_id: UUID, provider: str) -> UserOAuthToken | None:
+        """Get oauth token."""
         result = await self.db.execute(
             select(UserOAuthToken).filter(
                 UserOAuthToken.user_id == str(user_id), UserOAuthToken.provider == provider
@@ -19,6 +21,7 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
         return result.scalars().first()
 
     async def get_external_event(self, user_id: UUID, external_id: str) -> ExternalSyncedEvent | None:
+        """Get external event."""
         result = await self.db.execute(
             select(ExternalSyncedEvent).filter(
                 ExternalSyncedEvent.user_id == str(user_id),
@@ -28,6 +31,7 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
         return result.scalars().first()
 
     async def get_external_events(self, user_id: UUID, external_ids: list[str]) -> list[ExternalSyncedEvent]:
+        """Get external events."""
         if not external_ids:
             return []
         result = await self.db.execute(
@@ -39,6 +43,7 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
         return list(result.scalars().all())
 
     def add_external_event(self, event: ExternalSyncedEvent) -> None:
+        """Add external event."""
         self.db.add(event)
 
     async def upsert_oauth_token(
@@ -50,6 +55,7 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
         scopes: list[str],
         expires_at,
     ) -> UserOAuthToken:
+        """Upsert oauth token."""
         existing = await self.get_oauth_token(user_id, provider)
         if existing:
             existing.access_token = access_token
@@ -73,6 +79,7 @@ class IntegrationRepository(BaseRepository[UserOAuthToken]):
         return token
 
     async def delete_oauth_token(self, user_id: UUID, provider: str) -> bool:
+        """Delete oauth token."""
         existing = await self.get_oauth_token(user_id, provider)
         if existing:
             await self.db.delete(existing)

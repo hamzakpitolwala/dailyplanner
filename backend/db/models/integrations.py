@@ -17,6 +17,7 @@ class PortableScopes(TypeDecorator):
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
+        """Load dialect impl."""
         if dialect.name == 'postgresql':
             return dialect.type_descriptor(ARRAY(TEXT))
         else:
@@ -24,10 +25,12 @@ class PortableScopes(TypeDecorator):
 
 
 def _uuid() -> str:
+    """ uuid."""
     return str(uuid.uuid4())
 
 
 class UserOAuthToken(Base):
+    """Useroauthtoken."""
     __tablename__ = "user_oauth_tokens"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)
@@ -55,6 +58,7 @@ class UserOAuthToken(Base):
 
 
 class ExternalSyncedEvent(Base):
+    """Externalsyncedevent."""
     __tablename__ = "external_synced_events"
 
     id = Column(PortableUUID, primary_key=True, default=_uuid, index=True)

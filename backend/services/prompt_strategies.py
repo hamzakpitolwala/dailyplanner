@@ -3,19 +3,24 @@ from typing import Any, List
 from backend.db.models.core import UserProfile, FixedBlock
 
 class PromptStrategy(abc.ABC):
+    """Promptstrategy."""
     @property
     @abc.abstractmethod
     def system_prompt(self) -> str:
+        """System prompt."""
         pass
         
     @abc.abstractmethod
     def build_user_prompt(self, **kwargs) -> str:
+        """Build user prompt."""
         pass
 
 
 class StarterPlanPromptStrategy(PromptStrategy):
+    """Starterplanpromptstrategy."""
     @property
     def system_prompt(self) -> str:
+        """System prompt."""
         return """You are an assistant that designs a structured daily planner template.
 You MUST respond with a single JSON object that matches this schema:
 
@@ -48,6 +53,7 @@ Do NOT include any explanation or extra text. Output JSON only. No markdown form
         day_type: str = "generic",
         extra_prompt: str = ""
     ) -> str:
+        """Build user prompt."""
         blocks_text = "\n".join([f"- {b.name}: {b.start_time}-{b.end_time} on days {b.days_of_week}" for b in fixed_blocks])
         events_text = "\n".join([f"- {e.summary}: {e.start_time} to {e.end_time}" for e in calendar_events]) if calendar_events else "None"
         
@@ -76,8 +82,10 @@ Constraints:
 
 
 class WeeklySummaryPromptStrategy(PromptStrategy):
+    """Weeklysummarypromptstrategy."""
     @property
     def system_prompt(self) -> str:
+        """System prompt."""
         return """You are an assistant that summarizes planner activity performance.
 You MUST respond with a single JSON object that matches this schema:
 
@@ -101,6 +109,7 @@ Do NOT include any explanation or extra text. Output JSON only. No markdown form
 """
 
     def build_user_prompt(self, period_start: str, period_end: str, period_type: str, completed_tasks: int, missed_tasks: int, partial_tasks: int, reschedule_count: int, extra_prompt: str = "") -> str:
+        """Build user prompt."""
         return f"""
 Summarize the {period_type} from {period_start} to {period_end}.
 

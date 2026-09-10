@@ -26,6 +26,7 @@ class TemplateService:
         template_task_repo: TemplateTaskRepository,
         task_repo: TaskRepository,
     ):
+        """  init  ."""
         self.template_repo = template_repo
         self.template_task_repo = template_task_repo
         self.task_repo = task_repo
@@ -34,18 +35,22 @@ class TemplateService:
     # Planner Templates
     # ------------------------------------------------------------------
 
-    async def list_templates(self, user_id: UUID) -> list[PlannerTemplate]:
-        return await self.template_repo.list_templates(user_id)
+    async def list_templates(self, user_id: UUID, active_id: str | None = None) -> list[PlannerTemplate]:
+        """List templates."""
+        return await self.template_repo.list_templates(user_id, active_id)
 
     async def get_template(self, user_id: UUID, template_id: UUID) -> PlannerTemplate | None:
+        """Get template."""
         return await self.template_repo.get_template(user_id, template_id)
 
     async def get_template_by_name(self, user_id: UUID, name: str) -> PlannerTemplate | None:
+        """Get template by name."""
         return await self.template_repo.get_template_by_name(user_id, name)
 
     async def create_template(
         self, user_id: UUID, data: PlannerTemplateCreate
     ) -> PlannerTemplate:
+        """Create template."""
         payload = data.model_dump(exclude={"template_tasks"})
         template = PlannerTemplate(user_id=str(user_id), **payload)
         
@@ -62,14 +67,17 @@ class TemplateService:
     async def update_template(
         self, template: PlannerTemplate, data: PlannerTemplateUpdate
     ) -> PlannerTemplate:
+        """Update template."""
         return await self.template_repo.update(template, **data.model_dump(exclude_unset=True))
 
     async def delete_template(self, template: PlannerTemplate) -> None:
+        """Delete template."""
         await self.template_repo.delete(template)
 
     async def _clean_stale_tasks(
         self, user_id: UUID, template_id: UUID, start_of_day: datetime, end_of_day: datetime
     ) -> bool:
+        """ clean stale tasks."""
         stale_tasks = await self.template_repo.get_stale_template_tasks_to_clean(
             user_id, template_id, start_of_day, end_of_day
         )
@@ -84,6 +92,7 @@ class TemplateService:
         return deleted_any
 
     def _parse_target_time(self, target_time: object) -> tuple[int, int, int]:
+        """ parse target time."""
         from datetime import time as dt_time
         if isinstance(target_time, dt_time):
             return target_time.hour, target_time.minute, target_time.second
@@ -94,6 +103,7 @@ class TemplateService:
         return hour, minute, second
 
     async def _sync_subtasks(self, task: Task, tmpl_task: TemplateTask) -> bool:
+        """ sync subtasks."""
         concrete_subs = {s.title: s for s in task.subtasks}
         tmpl_sub_titles = set()
         
@@ -286,18 +296,22 @@ class TemplateService:
     async def create_template_task(
         self, template: PlannerTemplate, data: TemplateTaskCreate
     ) -> TemplateTask:
+        """Create template task."""
         task = TemplateTask(template_id=str(template.id), **data.model_dump())
         return await self.template_task_repo.create(task)
 
     async def get_template_task(
         self, template_id: UUID, task_id: UUID
     ) -> TemplateTask | None:
+        """Get template task."""
         return await self.template_task_repo.get_template_task(template_id, task_id)
 
     async def update_template_task(
         self, task: TemplateTask, data: TemplateTaskUpdate
     ) -> TemplateTask:
+        """Update template task."""
         return await self.template_task_repo.update(task, **data.model_dump(exclude_unset=True))
 
     async def delete_template_task(self, task: TemplateTask) -> None:
+        """Delete template task."""
         await self.template_task_repo.delete(task)

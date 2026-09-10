@@ -19,6 +19,7 @@ class CalendarSyncManager:
         integration_service: IntegrationService,
         task_service: TaskService,
     ):
+        """  init  ."""
         self.integration_service = integration_service
         self.task_service = task_service
 

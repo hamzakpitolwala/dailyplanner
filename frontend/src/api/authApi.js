@@ -1,6 +1,9 @@
 import { apiRequest } from './client';
 import { AUTH_BASE } from '../utils/constants';
 
+/**
+ * Login.
+ */
 export const login = async (email, password) => {
   const response = await fetch(`${AUTH_BASE}/token`, {
     method: 'POST',
@@ -12,6 +15,9 @@ export const login = async (email, password) => {
   return data;
 };
 
+/**
+ * Register.
+ */
 export const register = async (email, username, password) => {
   const response = await fetch(`${AUTH_BASE}/register`, {
     method: 'POST',
@@ -23,14 +29,23 @@ export const register = async (email, username, password) => {
   return data;
 };
 
+/**
+ * Fetch Me.
+ */
 export const fetchMe = async () => {
   return await apiRequest(`${AUTH_BASE}/me`);
 };
 
+/**
+ * Get OAuth Url.
+ */
 export const getOAuthUrl = (provider) => {
   return `${AUTH_BASE}/${provider}/authorize`;
 };
 
+/**
+ * Change Password.
+ */
 export const changePassword = async (old_password, new_password) => {
   return await apiRequest(`/change-password`, {
     method: 'POST',

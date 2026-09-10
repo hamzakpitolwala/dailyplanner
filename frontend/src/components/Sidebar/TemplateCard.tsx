@@ -34,7 +34,7 @@ export const TemplateCard: FC<TemplateCardProps> = ({ template, isActive, onActi
             {template.name}
           </span>
           <span className="text-[11px] text-zinc-500 dark:text-zinc-500">
-            {template.template_tasks?.length || 0} tasks
+            {template.task_count ?? template.template_tasks?.length ?? 0} tasks
           </span>
         </div>
       </div>
